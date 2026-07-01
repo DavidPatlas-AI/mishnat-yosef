@@ -16,10 +16,17 @@
 3. ליצור Firestore Database במצב Production.
 4. לפתוח Project settings -> General -> Your apps -> Web app.
 5. להעתיק את `firebaseConfig` לתוך `index.html`.
-6. להחליף ב-`index.html` את `manager@example.com` באימייל האמיתי של המנהל.
-7. להחליף ב-`firestore.rules` את `manager@example.com` באותו אימייל מנהל.
-8. לפרסם את Firestore Rules מתוך Firebase Console.
-9. לפרוס מחדש ל-Netlify.
+6. להחליף ב-`index.html` את `MANAGER_EMAILS` באימייל האמיתי של המנהל.
+7. לפרסם את `firestore.rules` (שורש ה-repo) — אחת מהאפשרויות:
+   - Firebase Console → Firestore → Rules → הדבק את התוכן מ-`firestore.rules`
+   - או מהטרמינל (אחרי `firebase login`):
+     ```bash
+     cd mishnat-yosef
+     firebase deploy --only firestore:rules --project mishnat-yosef
+     ```
+8. לפרוס ל-Netlify: `netlify deploy --prod --site 73c074b1-f8d2-4d58-a1c8-5016a0f4f071`
+
+**חי:** https://mishnat-yosef-dashboard.netlify.app
 
 ## מה לשלוח לי כדי שאחבר ואפרוס
 

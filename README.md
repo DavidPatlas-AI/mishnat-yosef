@@ -1,16 +1,19 @@
 # משנת יוסף — פורטל לקוחות
 
-פורטל ניהול קנייה ללקוחות משנת יוסף.
+פורטל ניהול סלים ורשימות קנייה ללקוחות משנת יוסף.
+
+**Live:** https://mishnat-yosef-dashboard.netlify.app
 
 ## Tech
 
-- HTML + Firebase + Netlify Functions
-- PWA עם Service Worker
+- HTML + Firebase Auth/Firestore + Netlify Functions
+- `firestore.rules` — הרשאות לפי `role: admin` למנהלים
 
 ## Structure
 
-- `mishnat-yosef/` — אפליקציית הלקוח
-- `netlify/functions/` — פונקציות backend
+- `index.html` — האפליקציה (שורש)
+- `netlify/functions/` — סנכרון מוצרים וייבוא לקוחות
+- `firebase.json` — לפרסום Rules
 
 ## Setup
 
