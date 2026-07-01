@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#d96b11" />
+<meta name="description" content="פורטל ניהול סלים ורשימות קנייה של משנת יוסף" />
+<title>משנת יוסף – פורטל לקוחות</title>
+
+<!--
+  ╔══════════════════════════════════════════════════════╗
+  ║  הגדרת Firebase – חובה למלא לפני שימוש             ║
+  ║                                                      ║
+  ║  1. כנס ל-https://console.firebase.google.com        ║
+  ║  2. צור פרויקט חדש                                   ║
+  ║  3. הפעל Authentication → Email/Password             ║
+  ║  4. צור Firestore Database (Production mode)          ║
+  ║  5. הוסף Web App והעתק את ה-firebaseConfig לכאן     ║
+  ║  6. פרסם את הקובץ firestore.rules ב-Firebase          ║
+  ╚══════════════════════════════════════════════════════╝
+-->
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+         signOut, onAuthStateChanged, updateProfile }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, collection, collectionGroup,
+         addDoc, getDocs, updateDoc, writeBatch, query, where, orderBy, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ══════════════════════════════════════════
+//  ⬇️  שנה כאן לפרטי הפרויקט שלך
+// ══════════════════════════════════════════
+const firebaseConfig = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
+// ══════════════════════════════════════════
+
+const firebaseReady = !Object.values(firebaseConfig).some(value => String(value).includes('YOUR_'));
+const ALLOW_LOCAL_PREVIEW = location.protocol === 'file:';
+const localPreview = !firebaseReady && ALLOW_LOCAL_PREVIEW;
+
+// הכנס כאן את האימיילים האמיתיים של המנהלים לפני פריסה לאתר חי.
+const MANAGER_EMAILS = [
+  // "manager@example.com"
+];
+
+let auth = null;
+let db = null;
+let currentUser = null;
+let currentUserProfile = null;
+let currentUserIsManager = false;
+
+if (firebaseReady) {
+  const app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
+
+const managerEmailSet = new Set(
+  MANAGER_EMAILS
+    .map(email => String(email).trim().toLowerCase())
+    .filter(Boolean)
+);
+
+function isManagerEmail(email = '') {
+  return managerEmailSet.has(String(email).trim().toLowerCase());
+}
+
+const LOCAL_USER_KEY = 'mishnat-yosef-user';
+const LOCAL_BASKETS_KEY = 'mishnat-yosef-baskets';
+
+function getLocalUser() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_USER_KEY)); }
+  catch { return null; }
+}
+
+function getLocalBaskets() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_BASKETS_KEY)) || []; }
+  catch { return []; }
+}
+
+function setLocalBaskets(baskets) {
+  localStorage.setItem(LOCAL_BASKETS_KEY, JSON.stringify(baskets));
+}
+
+function persistLocalBasket() {
+  if (!localPreview || !currentBasketId) return;
+  const baskets = getLocalBaskets();
+  const basket = baskets.find(entry => entry.id === currentBasketId);
+  if (!basket) return;
+  basket.items = basketItems;
+  basket.updatedAt = Date.now();
+  setLocalBaskets(baskets);
+}
+
+// ─── DOM helpers ───
+const $  = id => document.getElementById(id);
+const show = id => $(id).style.display = 'block';
+const hide = id => $(id).style.display = 'none';
+
+function toast(msg, color='#333') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.background = color;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function setError(id, msg) { $(id).textContent = msg; }
+function clearError(id)    { $(id).textContent = ''; }
+
+// ─── AUTH STATE ───
+async function ensureUserProfile(user) {
+  const name = user.displayName || user.email.split('@')[0];
+  const role = isManagerEmail(user.email) ? 'admin' : 'customer';
+
+  if (localPreview) {
+    return { name, email: user.email, role };
+  }
+
+  const userRef = doc(db, 'users', user.uid);
+  const snap = await getDoc(userRef);
+
+  if (!snap.exists()) {
+    const profile = {
+      name,
+      email: user.email,
+      role,
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp()
+    };
+    await setDoc(userRef, profile);
+    return { name, email: user.email, role };
+  }
+
+  const profile = snap.data();
+  const normalizedProfile = {
+    name: profile.name || name,
+    email: profile.email || user.email,
+    role: profile.role || role
+  };
+
+  const updates = {
+    name: normalizedProfile.name,
+    email: user.email,
+    lastLoginAt: serverTimestamp()
+  };
+
+  if (role === 'admin' && normalizedProfile.role !== 'admin') {
+    updates.role = 'admin';
+    normalizedProfile.role = 'admin';
+  }
+
+  try {
+    await setDoc(userRef, updates, { merge: true });
+  } catch (err) {
+    console.warn('Could not update user profile', err);
+  }
+
+  return normalizedProfile;
+}
+
+async function enterApp(user) {
+  currentUser = user;
+  currentUserProfile = await ensureUserProfile(user);
+  currentUserIsManager = isManagerEmail(user.email);
+
+  hide('auth-page');
+  show('app');
+  $('user-name').textContent = currentUserProfile.name || user.email.split('@')[0];
+  $('user-avatar').textContent = (currentUserProfile.name || user.email)[0].toUpperCase();
+  $('user-role-badge').textContent = currentUserIsManager ? 'מנהל' : 'לקוח';
+  $('user-role-badge').className = currentUserIsManager ? 'role-badge role-admin' : 'role-badge';
+  $('nav-admin').style.display = currentUserIsManager ? 'block' : 'none';
+  await loadProductCatalog();
+  if (!currentUserIsManager) await checkAndImportPendingBasket(user);
+  await loadBasket();
+  await loadHistory();
+  if (currentUserIsManager) await loadAdminDashboard();
+}
+
+function enterAuth() {
+  currentUser = null;
+  currentUserProfile = null;
+  currentUserIsManager = false;
+  $('auth-page').style.display = 'flex';
+  hide('app');
+  if ($('btn-login')) $('btn-login').disabled = false;
+  if ($('btn-register')) $('btn-register').disabled = false;
+  showAuthTab('login');
+}
+
+function enterSetupMode() {
+  $('auth-page').style.display = 'flex';
+  hide('app');
+  const card = document.querySelector('.auth-card');
+  card.classList.add('setup-required-card');
+  card.innerHTML = `
+    <div class="auth-logo">
+      <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png"
+           alt="משנת יוסף" />
+    </div>
+    <div class="setup-required">
+      <span class="setup-kicker">חיבור אמיתי נדרש</span>
+      <h2>כדי שהכניסה תהיה אמיתית צריך לחבר Firebase</h2>
+      <p>המערכת מוכנה לעבודה עם משתמשים, סיסמאות, מנהל ושמירה בענן. חסרים רק פרטי הפרויקט האמיתיים של Firebase ואימייל המנהל.</p>
+      <div class="setup-list">
+        <div><strong>סיסמאות</strong><span>נשמרות ומוצפנות ב-Firebase Authentication, לא באתר.</span></div>
+        <div><strong>משתמשים וסלים</strong><span>נשמרים ב-Firestore בענן.</span></div>
+        <div><strong>מנהל</strong><span>נקבע לפי אימייל מורשה וחוקי אבטחה.</span></div>
+      </div>
+    </div>`;
+}
+
+if (firebaseReady) onAuthStateChanged(auth, async user => {
+  if (user) {
+    await enterApp(user);
+  } else {
+    enterAuth();
+  }
+});
+
+// ─── AUTH TABS ───
+window.showAuthTab = function(tab) {
+  clearError('login-err');
+  clearError('register-err');
+  if (tab === 'login') {
+    show('login-form');  hide('register-form');
+    $('tab-login').classList.add('auth-tab-active');
+    $('tab-register').classList.remove('auth-tab-active');
+  } else {
+    hide('login-form');  show('register-form');
+    $('tab-register').classList.add('auth-tab-active');
+    $('tab-login').classList.remove('auth-tab-active');
+  }
+};
+
+// ─── LOGIN ───
+window.doLogin = async function(e) {
+  e.preventDefault();
+  clearError('login-err');
+  const email = $('login-email').value.trim();
+  const pass  = $('login-pass').value;
+  if (localPreview && email && pass) {
+    const user = { email, displayName: email.split('@')[0] };
+    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
+    await enterApp(user);
+    toast('מצב תצוגה מקומית בלבד. באתר החי נדרש Firebase.', '#e87722');
+    return;
+  }
+  if (!firebaseReady) return setError('login-err', 'כדי להתחבר באמת צריך לחבר Firebase');
+  if (!email || !pass) return setError('login-err', 'יש למלא אימייל וסיסמה');
+  try {
+    $('btn-login').disabled = true;
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(err) {
+    $('btn-login').disabled = false;
+    const msgs = {
+      'auth/user-not-found':  'משתמש לא נמצא',
+      'auth/wrong-password':  'סיסמה שגויה',
+      'auth/invalid-email':   'אימייל לא תקין',
+      'auth/too-many-requests':'יותר מדי ניסיונות, נסה מאוחר יותר',
+    };
+    setError('login-err', msgs[err.code] || 'שגיאת כניסה');
+  }
+};
+
+// ─── REGISTER ───
+window.doRegister = async function(e) {
+  e.preventDefault();
+  clearError('register-err');
+  const name  = $('reg-name').value.trim();
+  const email = $('reg-email').value.trim();
+  const pass  = $('reg-pass').value;
+  const pass2 = $('reg-pass2').value;
+  if (localPreview && name && email && pass.length >= 6 && pass === pass2) {
+    const user = { email, displayName: name };
+    localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(user));
+    await enterApp(user);
+    toast('מצב תצוגה מקומית בלבד. באתר החי נדרש Firebase.', '#e87722');
+    return;
+  }
+  if (!firebaseReady) return setError('register-err', 'כדי ליצור משתמש אמיתי צריך לחבר Firebase');
+  if (!name || !email || !pass) return setError('register-err', 'יש למלא את כל השדות');
+  if (pass.length < 6)          return setError('register-err', 'סיסמה חייבת להיות לפחות 6 תווים');
+  if (pass !== pass2)           return setError('register-err', 'הסיסמאות אינן תואמות');
+  try {
+    $('btn-register').disabled = true;
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(cred.user, { displayName: name });
+    await setDoc(doc(db, 'users', cred.user.uid), {
+      name,
+      email,
+      role: isManagerEmail(email) ? 'admin' : 'customer',
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp()
+    });
+    toast('ברוך הבא, ' + name + '! 🎉', '#2e7d32');
+  } catch(err) {
+    $('btn-register').disabled = false;
+    const msgs = {
+      'auth/email-already-in-use': 'אימייל זה כבר רשום',
+      'auth/invalid-email':        'אימייל לא תקין',
+      'auth/weak-password':        'סיסמה חלשה מדי',
+    };
+    setError('register-err', msgs[err.code] || 'שגיאה בהרשמה');
+  }
+};
+
+// ─── LOGOUT ───
+window.doLogout = async function() {
+  if (localPreview) {
+    localStorage.removeItem(LOCAL_USER_KEY);
+    enterAuth();
+    return;
+  }
+  await signOut(auth);
+};
+
+// ─── TABS ───
+window.showTab = function(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  (el || document.querySelector(`[data-tab="${name}"]`)).classList.add('active');
+  if (name === 'admin' && currentUserIsManager) loadAdminDashboard();
+};
+
+// ══════════════════════════════════════════
+//  BASKET
+// ══════════════════════════════════════════
+
+let currentBasketId = null;
+let basketItems     = [];   // { id, name, qty, price, status }
+let dirty           = false;
+let catalogProducts = [];
+
+function normalizeCatalogProduct(product) {
+  return {
+    id: String(product.id || crypto.randomUUID()),
+    name: product.name || product.fullName || '',
+    fullName: product.fullName || product.name || '',
+    category: product.category || 'אחר',
+    price: Number(product.price || 0),
+    regularPrice: Number(product.regularPrice || 0),
+    unitText: product.unitText || '',
+    image: product.image || '',
+    available: product.available ?? null,
+    brand: product.brand || '',
+    source: product.source || 'mishnat-yosef',
+    saleId: product.saleId || '',
+    itemSalesId: product.itemSalesId || '',
+    productId: product.productId || '',
+    updatedAt: product.updatedAt || new Date().toISOString(),
+    raw: product.raw || null
+  };
+}
+
+async function loadProductCatalog() {
+  if (localPreview) {
+    catalogProducts = [];
+    renderCatalogOptions();
+    return;
+  }
+
+  if (!firebaseReady) return;
+
+  try {
+    const snap = await getDocs(query(collection(db, 'productCatalog'), orderBy('name')));
+    catalogProducts = snap.docs.map(productDoc => ({ id: productDoc.id, ...productDoc.data() }));
+    renderCatalogOptions();
+  } catch (err) {
+    console.warn('Could not load product catalog', err);
+    catalogProducts = [];
+    renderCatalogOptions();
+  }
+}
+
+function renderCatalogOptions() {
+  const dataList = $('products-suggestions');
+  if (!dataList) return;
+
+  dataList.innerHTML = catalogProducts
+    .slice(0, 500)
+    .map(product => `<option value="${escHtml(product.name)}">${escHtml([product.category, product.price ? '₪' + product.price : ''].filter(Boolean).join(' · '))}</option>`)
+    .join('');
+}
+
+function findCatalogProductByName(name) {
+  const normalized = String(name || '').trim().toLocaleLowerCase('he-IL');
+  if (!normalized) return null;
+  return catalogProducts.find(product => String(product.name || '').trim().toLocaleLowerCase('he-IL') === normalized)
+    || catalogProducts.find(product => String(product.fullName || '').trim().toLocaleLowerCase('he-IL') === normalized)
+    || null;
+}
+
+window.applyProductSuggestion = function() {
+  const product = findCatalogProductByName($('new-name').value);
+  if (!product) return;
+  if (!$('new-qty').value && product.unitText) $('new-qty').value = product.unitText;
+  if (!$('new-price').value && product.price) $('new-price').value = product.price;
+};
+
+async function loadBasket() {
+  if (localPreview) {
+    const baskets = getLocalBaskets();
+    let basket = baskets.find(entry => entry.status === 'open');
+    if (!basket) {
+      basket = {
+        id: crypto.randomUUID(),
+        status: 'open',
+        ownerEmail: currentUser?.email || '',
+        ownerName: currentUserProfile?.name || currentUser?.displayName || '',
+        createdAt: Date.now(),
+        items: []
+      };
+      baskets.unshift(basket);
+      setLocalBaskets(baskets);
+    }
+    currentBasketId = basket.id;
+    basketItems = basket.items || [];
+    renderBasket();
+    updateProgress();
+    return;
+  }
+  const uid = auth.currentUser.uid;
+  // Get latest open basket, or create one
+  const q = query(
+    collection(db, 'users', uid, 'baskets'),
+    where('status', '==', 'open'),
+    orderBy('createdAt', 'desc')
+  );
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    const docSnap = snap.docs[0];
+    currentBasketId = docSnap.id;
+    basketItems     = docSnap.data().items || [];
+  } else {
+    // Create fresh basket
+    const ref = await addDoc(collection(db, 'users', uid, 'baskets'), {
+      status: 'open',
+      ownerUid: uid,
+      ownerEmail: auth.currentUser.email,
+      ownerName: currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      items: []
+    });
+    currentBasketId = ref.id;
+    basketItems     = [];
+  }
+  renderBasket();
+  updateProgress();
+}
+
+function renderBasket() {
+  const list = $('basket-items');
+  if (basketItems.length === 0) {
+    list.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🛒</div>
+        <h3>הסל ריק</h3>
+        <p>הוסף מוצרים באמצעות הטופס למטה</p>
+      </div>`;
+    return;
+  }
+  list.innerHTML = basketItems.map((item, i) => `
+    <div class="item-row ${item.status || ''}" id="item-row-${i}">
+      <div class="item-name">${escHtml(item.name)}</div>
+      <div class="item-qty">${escHtml(item.qty || '')}</div>
+      <div class="item-price">${escHtml(item.price || '')}</div>
+      <div class="status-btns">
+        <button class="status-btn taken-btn ${item.status==='taken'?'active':''}"
+          onclick="setItemStatus(${i},'taken')">✅ נלקח</button>
+        <button class="status-btn missing-btn ${item.status==='missing'?'active':''}"
+          onclick="setItemStatus(${i},'missing')">❌ חסר</button>
+        <button class="status-btn del-btn" onclick="deleteItem(${i})" title="מחק">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+window.setItemStatus = function(i, status) {
+  basketItems[i].status = basketItems[i].status === status ? '' : status;
+  persistLocalBasket();
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+};
+
+window.deleteItem = function(i) {
+  if (!confirm('למחוק את המוצר "' + basketItems[i].name + '"?')) return;
+  basketItems.splice(i, 1);
+  persistLocalBasket();
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+};
+
+window.addItem = function(e) {
+  e.preventDefault();
+  const name  = $('new-name').value.trim();
+  const qty   = $('new-qty').value.trim();
+  const price = $('new-price').value.trim();
+  if (!name) return;
+  const catalogProduct = findCatalogProductByName(name);
+  basketItems.push({
+    name,
+    qty: qty || catalogProduct?.unitText || '',
+    price: price || (catalogProduct?.price ? String(catalogProduct.price) : ''),
+    status: '',
+    productId: catalogProduct?.id || '',
+    category: catalogProduct?.category || '',
+    image: catalogProduct?.image || ''
+  });
+  persistLocalBasket();
+  $('new-name').value = '';
+  $('new-qty').value  = '';
+  $('new-price').value= '';
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+  $('new-name').focus();
+};
+
+function updateProgress() {
+  const total   = basketItems.length;
+  const taken   = basketItems.filter(i => i.status === 'taken').length;
+  const missing = basketItems.filter(i => i.status === 'missing').length;
+  const done    = taken + missing;
+  const pct     = total ? Math.round(done / total * 100) : 0;
+  $('progress-fill').style.width  = pct + '%';
+  $('progress-text').textContent  = `${done} / ${total} מוצרים`;
+  $('stat-taken').textContent     = `${taken} נלקחו`;
+  $('stat-missing').textContent   = `${missing} חסרים`;
+  $('stat-pending').textContent   = `${total - done} ממתינים`;
+}
+
+function showSaveBar() { $('save-bar').classList.add('visible'); }
+function hideSaveBar()  { $('save-bar').classList.remove('visible'); }
+
+window.resetStatuses = function() {
+  if (!basketItems.some(item => item.status)) {
+    toast('אין סימונים לאיפוס');
+    return;
+  }
+  if (!confirm('לאפס את כל סימוני הסל הנוכחי?')) return;
+  basketItems.forEach(item => { item.status = ''; });
+  persistLocalBasket();
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+  toast('כל הסימונים אופסו', '#e87722');
+};
+
+function showSummary() {
+  const taken = basketItems.filter(item => item.status === 'taken').length;
+  const missing = basketItems.filter(item => item.status === 'missing').length;
+  const pending = basketItems.length - taken - missing;
+  $('summary-taken').textContent = taken;
+  $('summary-missing').textContent = missing;
+  $('summary-pending').textContent = pending;
+  $('summary-modal').showModal();
+}
+
+window.closeSummary = function() {
+  $('summary-modal').close();
+};
+
+window.saveBasket = async function() {
+  if (localPreview) {
+    const baskets = getLocalBaskets();
+    const basket = baskets.find(entry => entry.id === currentBasketId);
+    if (basket) {
+      basket.items = basketItems;
+      basket.updatedAt = Date.now();
+      setLocalBaskets(baskets);
+    }
+    dirty = false;
+    hideSaveBar();
+    showSummary();
+    toast('הסל נשמר בהצלחה!', '#2e7d32');
+    return;
+  }
+  const uid = auth.currentUser.uid;
+  await updateDoc(doc(db, 'users', uid, 'baskets', currentBasketId), {
+    items: basketItems,
+    ownerUid: uid,
+    ownerEmail: auth.currentUser.email,
+    ownerName: currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email,
+    updatedAt: serverTimestamp()
+  });
+  dirty = false;
+  hideSaveBar();
+  showSummary();
+  toast('✅ הסל נשמר בהצלחה!', '#2e7d32');
+};
+
+window.closeBasket = async function() {
+  if (!confirm('לסגור את הסל הנוכחי ולפתוח חדש?')) return;
+  if (localPreview) {
+    const baskets = getLocalBaskets();
+    const basket = baskets.find(entry => entry.id === currentBasketId);
+    if (basket) {
+      basket.items = basketItems;
+      basket.status = 'closed';
+      basket.closedAt = Date.now();
+      setLocalBaskets(baskets);
+    }
+    dirty = false;
+    hideSaveBar();
+    toast('הסל נסגר ונפתח סל חדש', '#e87722');
+    await loadBasket();
+    await loadHistory();
+    return;
+  }
+  const uid = auth.currentUser.uid;
+  await updateDoc(doc(db, 'users', uid, 'baskets', currentBasketId), {
+    items: basketItems,
+    ownerUid: uid,
+    ownerEmail: auth.currentUser.email,
+    ownerName: currentUserProfile?.name || auth.currentUser.displayName || auth.currentUser.email,
+    status: 'closed',
+    updatedAt: serverTimestamp(),
+    closedAt: serverTimestamp()
+  });
+  dirty = false;
+  hideSaveBar();
+  toast('הסל נסגר, נפתח סל חדש', '#e87722');
+  await loadBasket();
+  await loadHistory();
+};
+
+// ══════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════
+
+async function loadHistory() {
+  if (localPreview) {
+    renderLocalHistory(getLocalBaskets());
+    return;
+  }
+  const uid = auth.currentUser.uid;
+  const q = query(
+    collection(db, 'users', uid, 'baskets'),
+    orderBy('createdAt', 'desc')
+  );
+  const snap = await getDocs(q);
+  const container = $('history-list');
+  if (snap.empty) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>אין היסטוריה עדיין</h3></div>';
+    return;
+  }
+  container.innerHTML = '';
+  snap.docs.forEach((docSnap, idx) => {
+    const d = docSnap.data();
+    const items   = d.items || [];
+    const taken   = items.filter(i => i.status==='taken').length;
+    const missing = items.filter(i => i.status==='missing').length;
+    const date    = d.createdAt ? new Date(d.createdAt.seconds*1000).toLocaleDateString('he-IL') : '—';
+    const pill    = d.status === 'open'
+      ? '<span class="status-pill pill-open">פתוח</span>'
+      : taken === items.length && items.length > 0
+        ? '<span class="status-pill pill-done">הושלם</span>'
+        : '<span class="status-pill pill-partial">חלקי</span>';
+
+    const detailRows = items.length
+      ? items.map(item => {
+          const st = item.status === 'taken' ? '✅ נלקח' : item.status === 'missing' ? '❌ חסר' : '⏳ ממתין';
+          return `<div class="detail-item">
+            <span class="name">${escHtml(item.name)}</span>
+            <span class="qty">${escHtml(item.qty||'')}</span>
+            <span class="price">${escHtml(item.price||'')}</span>
+            <span class="item-status ${item.status||'pending'}">${st}</span>
+          </div>`;
+        }).join('')
+      : '<p style="color:var(--text-muted);font-size:14px;padding:8px 0">סל ריק</p>';
+
+    const card = document.createElement('div');
+    card.className = 'history-card';
+    card.innerHTML = `
+      <div class="history-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+        <div class="order-info">
+          <h3>סל מס׳ ${snap.docs.length - idx}</h3>
+          <p>${date} · ${items.length} מוצרים · ✅${taken} ❌${missing}</p>
+        </div>
+        <div class="order-right">
+          ${pill}
+          <span class="expand-icon">▼</span>
+        </div>
+      </div>
+      <div class="history-detail">${detailRows}</div>`;
+    container.appendChild(card);
+  });
+}
+
+function renderLocalHistory(baskets) {
+  const container = $('history-list');
+  if (!baskets.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>אין היסטוריה עדיין</h3></div>';
+    return;
+  }
+  container.innerHTML = baskets.map((basket, index) => {
+    const items = basket.items || [];
+    const taken = items.filter(item => item.status === 'taken').length;
+    const missing = items.filter(item => item.status === 'missing').length;
+    const date = new Date(basket.createdAt).toLocaleDateString('he-IL');
+    const status = basket.status === 'open' ? 'פתוח' : 'סגור';
+    const rows = items.length ? items.map(item => `
+      <div class="detail-item">
+        <span class="name">${escHtml(item.name)}</span>
+        <span class="qty">${escHtml(item.qty || '')}</span>
+        <span class="price">${escHtml(item.price || '')}</span>
+      </div>`).join('') : '<p class="local-empty">סל ריק</p>';
+    return `<div class="history-card">
+      <div class="history-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+        <div class="order-info"><h3>סל מס׳ ${baskets.length - index}</h3><p>${date} · ${items.length} מוצרים · ✅ ${taken} · ❌ ${missing}</p></div>
+        <div class="order-right"><span class="status-pill ${basket.status === 'open' ? 'pill-open' : 'pill-partial'}">${status}</span><span class="expand-icon">▼</span></div>
+      </div>
+      <div class="history-detail">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  if (value.seconds) return new Date(value.seconds * 1000).toLocaleDateString('he-IL');
+  return new Date(value).toLocaleDateString('he-IL');
+}
+
+function statusText(status) {
+  return status === 'open' ? 'פתוח' : 'סגור';
+}
+
+function getBasketStats(items = []) {
+  const taken = items.filter(item => item.status === 'taken').length;
+  const missing = items.filter(item => item.status === 'missing').length;
+  return { taken, missing, pending: items.length - taken - missing, total: items.length };
+}
+
+async function getOwnerProfile(uid, cache) {
+  if (!uid) return {};
+  if (cache.has(uid)) return cache.get(uid);
+
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    const profile = snap.exists() ? snap.data() : {};
+    cache.set(uid, profile);
+    return profile;
+  } catch (err) {
+    cache.set(uid, {});
+    return {};
+  }
+}
+
+async function saveProductsToCatalog(products, sale) {
+  if (!firebaseReady) throw new Error('Firebase לא מחובר עדיין');
+  const normalized = products.map(normalizeCatalogProduct).filter(product => product.name);
+  const chunkSize = 450;
+
+  for (let start = 0; start < normalized.length; start += chunkSize) {
+    const batch = writeBatch(db);
+    normalized.slice(start, start + chunkSize).forEach(product => {
+      batch.set(doc(db, 'productCatalog', product.id), {
+        ...product,
+        lastSyncedAt: serverTimestamp()
+      }, { merge: true });
+    });
+    await batch.commit();
+  }
+
+  await setDoc(doc(db, 'syncStatus', 'mishnat-yosef-products'), {
+    source: 'mishnat-yosef',
+    sale: sale || null,
+    count: normalized.length,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+
+  catalogProducts = normalized.sort((a, b) => a.name.localeCompare(b.name, 'he'));
+  renderCatalogOptions();
+  return normalized.length;
+}
+
+window.syncMishnatProducts = async function() {
+  if (!currentUserIsManager) {
+    toast('רק מנהל יכול לסנכרן מוצרים', '#c62828');
+    return;
+  }
+
+  if (!firebaseReady) {
+    $('sync-status').textContent = 'צריך לחבר Firebase לפני שמירת מוצרים אמיתית.';
+    return;
+  }
+
+  if (location.protocol === 'file:') {
+    $('sync-status').textContent = 'סנכרון עובד אחרי פריסה ל-Netlify, לא מתוך קובץ מקומי.';
+    return;
+  }
+
+  const token = $('mishnat-token').value.trim();
+  const saleId = $('mishnat-sale-id').value.trim();
+
+  if (!token) {
+    $('sync-status').textContent = 'צריך להדביק טוקן כניסה זמני ממשנת יוסף. הטוקן לא נשמר.';
+    return;
+  }
+
+  const button = $('btn-sync-products');
+  button.disabled = true;
+  $('sync-status').textContent = 'מסנכרן מוצרים ממשנת יוסף...';
+
+  try {
+    const response = await fetch('/.netlify/functions/mishnat-products-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, saleId })
+    });
+
+    const payload = await response.json();
+    if (!response.ok || !payload.ok) {
+      throw new Error(payload.message || 'סנכרון המוצרים נכשל');
+    }
+
+    const count = await saveProductsToCatalog(payload.products || [], payload.sale || null);
+    $('mishnat-token').value = '';
+    $('sync-status').textContent = `הסנכרון הושלם: ${count} מוצרים נשמרו מהאתר של משנת יוסף.`;
+    toast('מאגר המוצרים עודכן בהצלחה', '#2e7d32');
+    await loadAdminDashboard();
+  } catch (err) {
+    console.error(err);
+    $('sync-status').textContent = err.message || 'שגיאה בסנכרון מוצרים';
+    toast('סנכרון המוצרים נכשל', '#c62828');
+  } finally {
+    button.disabled = false;
+  }
+};
+
+async function loadAdminDashboard() {
+  if (!currentUserIsManager || !$('admin-orders-list')) return;
+
+  $('admin-orders-list').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><h3>טוען נתוני מנהל...</h3></div>';
+
+  if (localPreview) {
+    const baskets = getLocalBaskets().map(basket => ({
+      id: basket.id,
+      status: basket.status || 'open',
+      ownerName: basket.ownerName || currentUserProfile?.name || 'תצוגה מקומית',
+      ownerEmail: basket.ownerEmail || currentUser?.email || '',
+      createdAt: basket.createdAt,
+      updatedAt: basket.updatedAt,
+      items: basket.items || []
+    }));
+    renderAdminDashboard(baskets, 1);
+    return;
+  }
+
+  try {
+    const [usersSnap, basketsSnap] = await Promise.all([
+      getDocs(collection(db, 'users')),
+      getDocs(query(collectionGroup(db, 'baskets'), orderBy('createdAt', 'desc')))
+    ]);
+
+    const profileCache = new Map();
+    const baskets = [];
+
+    for (const basketDoc of basketsSnap.docs) {
+      const data = basketDoc.data();
+      const ownerUid = data.ownerUid || basketDoc.ref.parent.parent?.id || '';
+      const ownerProfile = await getOwnerProfile(ownerUid, profileCache);
+
+      baskets.push({
+        id: basketDoc.id,
+        status: data.status || 'open',
+        ownerName: data.ownerName || ownerProfile.name || 'משתמש ללא שם',
+        ownerEmail: data.ownerEmail || ownerProfile.email || '',
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+        items: data.items || []
+      });
+    }
+
+    renderAdminDashboard(baskets, usersSnap.size);
+  } catch (err) {
+    console.error('Admin dashboard error', err);
+    $('admin-orders-list').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🔐</div>
+        <h3>אין הרשאה לנתוני מנהל עדיין</h3>
+        <p>צריך לעדכן את Firestore Rules עם אימייל המנהל ולפרסם אותן ב-Firebase.</p>
+      </div>`;
+  }
+}
+
+function renderAdminDashboard(baskets, userCount) {
+  const allStats = baskets.reduce((acc, basket) => {
+    const stats = getBasketStats(basket.items);
+    acc.items += stats.total;
+    acc.missing += stats.missing;
+    return acc;
+  }, { items: 0, missing: 0 });
+
+  $('admin-users-count').textContent = userCount;
+  $('admin-open-count').textContent = baskets.filter(basket => basket.status === 'open').length;
+  $('admin-closed-count').textContent = baskets.filter(basket => basket.status !== 'open').length;
+  $('admin-missing-count').textContent = allStats.missing;
+  $('admin-products-count').textContent = catalogProducts.length;
+
+  if (!baskets.length) {
+    $('admin-orders-list').innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>אין סלים להצגה עדיין</h3></div>';
+    return;
+  }
+
+  $('admin-orders-list').innerHTML = baskets.map((basket, index) => {
+    const stats = getBasketStats(basket.items);
+    const rows = basket.items.length
+      ? basket.items.map(item => {
+          const st = item.status === 'taken' ? '✅ נלקח' : item.status === 'missing' ? '❌ חסר' : '⏳ ממתין';
+          return `<div class="detail-item">
+            <span class="name">${escHtml(item.name)}</span>
+            <span class="qty">${escHtml(item.qty || '')}</span>
+            <span class="price">${escHtml(item.price || '')}</span>
+            <span class="item-status ${item.status || 'pending'}">${st}</span>
+          </div>`;
+        }).join('')
+      : '<p style="color:var(--text-muted);font-size:14px;padding:8px 0">סל ריק</p>';
+
+    return `<div class="history-card admin-order-card">
+      <div class="history-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+        <div class="order-info">
+          <h3>${escHtml(basket.ownerName)}</h3>
+          <p>${escHtml(basket.ownerEmail || 'אין אימייל')} · ${formatDate(basket.createdAt)} · ${stats.total} מוצרים · ✅ ${stats.taken} · ❌ ${stats.missing}</p>
+        </div>
+        <div class="order-right">
+          <span class="status-pill ${basket.status === 'open' ? 'pill-open' : 'pill-partial'}">${statusText(basket.status)}</span>
+          <span class="expand-icon">▼</span>
+        </div>
+      </div>
+      <div class="history-detail">
+        <div class="admin-order-meta">סל ${index + 1} · עודכן: ${formatDate(basket.updatedAt)}</div>
+        ${rows}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.refreshAdmin = function() {
+  loadAdminDashboard();
+};
+
+// ══════════════════════════════════════════
+//  ייבוא סלי לקוחות ממשנת יוסף
+// ══════════════════════════════════════════
+
+window.importCustomers = async function() {
+  if (!currentUserIsManager) { toast('רק מנהל יכול לייבא', '#c62828'); return; }
+  if (!firebaseReady) { $('import-status').textContent = 'צריך לחבר Firebase לפני ייבוא.'; return; }
+  if (location.protocol === 'file:') { $('import-status').textContent = 'ייבוא עובד אחרי פריסה ל-Netlify.'; return; }
+
+  const token  = $('import-token').value.trim();
+  const saleId = $('import-sale-id').value.trim();
+  if (!token) { $('import-status').textContent = 'יש להזין טוקן כניסה.'; return; }
+
+  const btn = $('btn-import-customers');
+  btn.disabled = true;
+  $('import-status').textContent = 'מביא סלים ממשנת יוסף...';
+  $('import-preview').innerHTML = '';
+
+  try {
+    const res = await fetch('/.netlify/functions/mishnat-customers-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, saleId })
+    });
+    const payload = await res.json();
+    if (!res.ok || !payload.ok) throw new Error(payload.message || 'ייבוא נכשל');
+
+    $('import-token').value = '';
+    const customers = payload.customers || [];
+    $('import-status').textContent = `נמצאו ${customers.length} לקוחות — שומר ל-Firestore...`;
+
+    // Save pending baskets keyed by email
+    const batch = writeBatch(db);
+    let saved = 0;
+    for (const customer of customers) {
+      if (!customer.email) continue;
+      const key = customer.email.toLowerCase().replace(/\./g, '_dot_');
+      batch.set(doc(db, 'pendingBaskets', key), {
+        name:      customer.name  || '',
+        email:     customer.email || '',
+        phone:     customer.phone || '',
+        items:     customer.items || [],
+        orderId:   customer.orderId || '',
+        importedAt: serverTimestamp(),
+        saleId:    String(payload.sale?.id || '')
+      }, { merge: true });
+      saved++;
+      if (saved % 450 === 0) { await batch.commit(); }
+    }
+    await batch.commit();
+
+    $('import-status').textContent = `✅ יובאו ${saved} סלים בהצלחה. הם יופיעו ללקוחות בכניסה הראשונה.`;
+    renderImportPreview(customers);
+    toast(`יובאו ${saved} סלי לקוחות`, '#2e7d32');
+
+  } catch (err) {
+    console.error(err);
+    $('import-status').textContent = err.message || 'שגיאה בייבוא';
+    toast('ייבוא נכשל', '#c62828');
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+function renderImportPreview(customers) {
+  if (!customers.length) return;
+  const el = $('import-preview');
+  el.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:var(--orange-dark);margin-bottom:8px">${customers.length} לקוחות יובאו:</div>
+    ${customers.slice(0, 20).map(c => `
+      <div style="display:flex;justify-content:space-between;padding:7px 10px;background:var(--cream);border-radius:8px;margin-bottom:5px;font-size:13px">
+        <span style="font-weight:600">${escHtml(c.name || '—')}</span>
+        <span style="color:var(--text-muted)">${escHtml(c.email || 'ללא אימייל')}</span>
+        <span style="color:var(--orange-dark)">${(c.items||[]).length} מוצרים</span>
+      </div>`).join('')}
+    ${customers.length > 20 ? `<div style="text-align:center;color:var(--text-muted);font-size:12px;margin-top:6px">ועוד ${customers.length - 20} נוספים...</div>` : ''}`;
+}
+
+// ──────────────────────────────────────────
+//  טעינת סל ממתין בכניסה ראשונה של לקוח
+// ──────────────────────────────────────────
+async function checkAndImportPendingBasket(user) {
+  if (!firebaseReady || !user?.email) return;
+  try {
+    const key  = user.email.toLowerCase().replace(/\./g, '_dot_');
+    const snap = await getDoc(doc(db, 'pendingBaskets', key));
+    if (!snap.exists()) return;
+
+    const pending = snap.data();
+    const items   = pending.items || [];
+    if (!items.length) return;
+
+    // Check if user already has a basket with items
+    const q = query(collection(db, 'users', user.uid, 'baskets'), where('status', '==', 'open'), orderBy('createdAt', 'desc'));
+    const existing = await getDocs(q);
+    const hasItems = !existing.empty && (existing.docs[0].data().items || []).length > 0;
+    if (hasItems) return;
+
+    // Create basket from pending data
+    const ref = await addDoc(collection(db, 'users', user.uid, 'baskets'), {
+      status:    'open',
+      ownerUid:  user.uid,
+      ownerEmail: user.email,
+      ownerName: pending.name || currentUserProfile?.name || user.email,
+      items,
+      importedFrom: 'mishnat-yosef',
+      importedAt: serverTimestamp(),
+      createdAt:  serverTimestamp(),
+      updatedAt:  serverTimestamp()
+    });
+
+    toast(`הסל שלך מהמכירה הקודמת הועלה אוטומטית (${items.length} מוצרים)`, '#2e7d32');
+  } catch (err) {
+    console.warn('Could not import pending basket', err);
+  }
+}
+
+if (localPreview) {
+  const localUser = getLocalUser();
+  if (localUser) enterApp(localUser);
+  else enterAuth();
+} else if (!firebaseReady) {
+  enterSetupMode();
+}
+
+</script>
+
+<style>
+:root {
+  --orange:       #e87722;
+  --orange-dark:  #c25e00;
+  --orange-pale:  #fdeede;
+  --orange-light: #f09040;
+  --cream:        #fff9f5;
+  --text:         #1a1a1a;
+  --text-muted:   #7a6a5a;
+  --border:       #f0d8c0;
+  --success:      #2e7d32;
+  --danger:       #c62828;
+  --white:        #ffffff;
+  --shadow:       0 2px 14px rgba(232,119,34,0.13);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { max-width: 100%; overflow-x: hidden; }
+body { min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; background: var(--cream); color: var(--text); direction: rtl; }
+
+/* ── AUTH PAGE ── */
+#auth-page {
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--orange-dark) 0%, var(--orange) 100%);
+}
+#app { display: none; }
+
+.auth-card {
+  background: var(--white);
+  border-radius: 18px;
+  padding: 36px 36px 40px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.22);
+}
+.auth-logo { text-align: center; margin-bottom: 20px; }
+.auth-logo img { width: 200px; height: auto; }
+
+.auth-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 24px;
+}
+.auth-tab {
+  flex: 1; text-align: center;
+  padding: 11px;
+  font-size: 15px; font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: color .2s, border-color .2s;
+}
+.auth-tab:hover { color: var(--orange); }
+.auth-tab-active { color: var(--orange-dark) !important; border-bottom-color: var(--orange) !important; }
+
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--orange-dark); margin-bottom: 5px; }
+.form-group input {
+  width: 100%; padding: 10px 13px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 15px; color: var(--text); background: var(--cream);
+  outline: none; direction: rtl; transition: border-color .2s;
+}
+.form-group input:focus { border-color: var(--orange); background: #fff; }
+
+.btn-submit {
+  width: 100%; padding: 12px;
+  background: linear-gradient(90deg, var(--orange-dark) 0%, var(--orange) 100%);
+  color: #fff; border: none; border-radius: 8px;
+  font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 6px;
+  transition: opacity .2s;
+}
+.btn-submit:hover { opacity: .9; }
+.btn-submit:disabled { opacity: .6; cursor: default; }
+
+.err-msg { color: var(--danger); font-size: 13px; min-height: 18px; margin-top: 8px; text-align: center; }
+.setup-required-card { width: min(560px, calc(100vw - 32px)); }
+.setup-required { text-align: right; }
+.setup-kicker {
+  display: inline-flex; margin-bottom: 10px; padding: 5px 12px;
+  border-radius: 999px; background: var(--orange-pale); color: var(--orange-dark);
+  font-size: 12px; font-weight: 800;
+}
+.setup-required h2 { color: var(--orange-dark); font-size: 24px; line-height: 1.25; margin-bottom: 10px; }
+.setup-required p { color: var(--text-muted); line-height: 1.7; margin-bottom: 18px; }
+.setup-list { display: grid; gap: 10px; }
+.setup-list div {
+  padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--cream);
+}
+.setup-list strong { display: block; color: var(--text); margin-bottom: 4px; }
+.setup-list span { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
+
+/* ── HEADER ── */
+header {
+  background: linear-gradient(90deg, var(--orange-dark) 0%, var(--orange) 100%);
+  padding: 0 26px; height: 58px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.header-logo img { height: 34px; width: auto; filter: brightness(0) invert(1); }
+.header-user { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 14px; }
+.avatar {
+  width: 32px; height: 32px; background: #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: var(--orange-dark);
+}
+.role-badge {
+  padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,.28); color: #fff; font-size: 12px; font-weight: 700;
+}
+.role-admin { background: #fff; color: var(--orange-dark); }
+.btn-logout {
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+  color: #fff; padding: 4px 13px; border-radius: 20px; cursor: pointer;
+  font-size: 13px; transition: background .2s;
+}
+.btn-logout:hover { background: rgba(255,255,255,.3); }
+
+/* ── NAV ── */
+nav {
+  background: var(--white); border-bottom: 2px solid var(--border);
+  padding: 0 26px; display: flex; gap: 4px;
+}
+.nav-tab {
+  padding: 13px 20px; font-size: 15px; font-weight: 600;
+  color: var(--text-muted); cursor: pointer;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  transition: color .2s, border-color .2s;
+}
+.nav-tab:hover { color: var(--orange-dark); }
+.nav-tab.active { color: var(--orange-dark); border-bottom-color: var(--orange); }
+.nav-admin { display: none; }
+
+/* ── MAIN ── */
+main { max-width: 860px; margin: 28px auto; padding: 0 20px; }
+.page { display: none; }
+.page.active { display: block; }
+
+.page-title { margin-bottom: 20px; }
+.page-title h2 { font-size: 21px; font-weight: 700; color: var(--orange-dark); margin-bottom: 3px; }
+.page-title p  { font-size: 14px; color: var(--text-muted); }
+.page-title-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.btn-refresh-admin {
+  padding: 9px 18px; border: 1.5px solid var(--border); border-radius: 999px;
+  background: var(--white); color: var(--orange-dark); font-weight: 700; cursor: pointer;
+}
+.btn-refresh-admin:hover { border-color: var(--orange); background: var(--orange-pale); }
+
+/* ── ADD ITEM FORM ── */
+.add-form {
+  background: var(--white); border-radius: 12px;
+  padding: 18px 20px; margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.add-form h3 { font-size: 15px; font-weight: 700; color: var(--orange-dark); margin-bottom: 12px; }
+.add-row {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+}
+.add-row input {
+  padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 14px; color: var(--text); background: var(--cream);
+  outline: none; direction: rtl; transition: border-color .2s;
+}
+.add-row input:focus { border-color: var(--orange); background: #fff; }
+.inp-name  { flex: 2; min-width: 160px; }
+.inp-qty   { flex: 1; min-width: 80px; }
+.inp-price { flex: 1; min-width: 90px; }
+.btn-add {
+  padding: 9px 22px; background: var(--orange); color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; transition: opacity .2s;
+}
+.btn-add:hover { opacity: .88; }
+
+/* ── PROGRESS ── */
+.progress-card {
+  background: var(--white); border-radius: 12px;
+  padding: 16px 20px; margin-bottom: 18px; box-shadow: var(--shadow);
+}
+.progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.progress-header h3 { font-size: 13px; color: var(--text-muted); }
+.progress-header span { font-size: 13px; font-weight: 700; color: var(--orange-dark); }
+.progress-bar-wrap { background: #eee; border-radius: 99px; height: 9px; overflow: hidden; margin-bottom: 10px; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--orange-dark), var(--orange)); border-radius: 99px; transition: width .4s; }
+.progress-stats { display: flex; gap: 16px; font-size: 13px; flex-wrap: wrap; }
+.stat { display: flex; align-items: center; gap: 5px; }
+.stat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-taken { background: var(--success); }
+.dot-missing { background: var(--danger); }
+.dot-pending { background: #bbb; }
+
+/* ── ITEM LIST ── */
+#basket-items { background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow); }
+.item-row {
+  display: flex; align-items: center; padding: 13px 16px;
+  border-bottom: 1px solid var(--border); gap: 10px; transition: background .15s;
+}
+.item-row:last-child { border-bottom: none; }
+.item-row:hover { background: #fff5ee; }
+.item-row.taken   { background: #f0faf1; }
+.item-row.missing { background: #fff5f5; }
+.item-name  { flex: 2; font-size: 15px; font-weight: 500; }
+.item-qty   { flex: 1; font-size: 13px; color: var(--text-muted); background: var(--orange-pale); padding: 2px 9px; border-radius: 20px; text-align: center; }
+.item-price { flex: 1; font-size: 14px; font-weight: 600; color: var(--orange-dark); min-width: 55px; }
+.status-btns { display: flex; gap: 5px; flex-shrink: 0; }
+.status-btn {
+  padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid transparent; transition: all .15s; white-space: nowrap;
+}
+.taken-btn   { border-color: var(--success); color: var(--success); background: transparent; }
+.taken-btn.active, .taken-btn:hover { background: var(--success); color: #fff; }
+.missing-btn { border-color: var(--danger); color: var(--danger); background: transparent; }
+.missing-btn.active, .missing-btn:hover { background: var(--danger); color: #fff; }
+.del-btn { border-color: #bbb; color: #888; background: transparent; font-size: 13px; padding: 5px 8px; }
+.del-btn:hover { background: #ffebee; border-color: var(--danger); color: var(--danger); }
+
+/* ── CLOSE BASKET ── */
+.basket-actions { display: flex; gap: 10px; margin-top: 16px; }
+.btn-close-basket {
+  padding: 10px 22px; background: transparent;
+  border: 2px solid var(--orange); color: var(--orange-dark);
+  border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+  transition: all .2s;
+}
+.btn-close-basket:hover { background: var(--orange); color: #fff; }
+.btn-reset-statuses {
+  padding: 10px 22px; background: var(--white); color: var(--text-muted);
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s;
+}
+.btn-reset-statuses:hover { border-color: var(--danger); color: var(--danger); background: #fff5f5; }
+
+.summary-modal {
+  width: min(430px, calc(100vw - 32px)); border: 0; border-radius: 20px;
+  padding: 0; margin: auto; color: var(--text); box-shadow: 0 24px 70px rgba(45,25,10,.28);
+}
+.summary-modal::backdrop { background: rgba(40,24,12,.55); backdrop-filter: blur(5px); }
+.summary-content { padding: 28px; text-align: center; }
+.summary-content h2 { color: var(--orange-dark); margin-bottom: 7px; }
+.summary-content > p { color: var(--text-muted); margin-bottom: 22px; }
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 22px; }
+.summary-stat { padding: 14px 8px; border-radius: 12px; background: var(--cream); border: 1px solid var(--border); }
+.summary-stat strong { display: block; font-size: 26px; color: var(--orange-dark); }
+.summary-stat span { font-size: 12px; color: var(--text-muted); }
+.summary-close { width: 100%; padding: 11px; border: 0; border-radius: 9px; background: var(--orange); color: #fff; font-weight: 700; cursor: pointer; }
+
+/* ── SAVE BAR ── */
+.save-bar {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  background: var(--orange-dark); color: #fff;
+  padding: 12px 28px; border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.22);
+  display: none; align-items: center; gap: 14px;
+  font-size: 15px; font-weight: 600; z-index: 200;
+}
+.save-bar.visible { display: flex; }
+.btn-save {
+  background: #fff; color: var(--orange-dark);
+  border: none; padding: 7px 20px; border-radius: 20px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+
+/* ── HISTORY ── */
+.history-list { display: flex; flex-direction: column; gap: 14px; }
+.history-card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.history-card-header {
+  padding: 14px 18px; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap; cursor: pointer;
+}
+.history-card-header:hover { background: #fff5ee; }
+.order-info h3 { font-size: 15px; font-weight: 700; color: var(--orange-dark); margin-bottom: 3px; }
+.order-info p  { font-size: 13px; color: var(--text-muted); }
+.order-right   { display: flex; align-items: center; gap: 10px; }
+.expand-icon   { font-size: 12px; color: var(--text-muted); transition: transform .2s; }
+.history-card.expanded .expand-icon { transform: rotate(180deg); }
+.history-detail { display: none; padding: 0 18px 14px; border-top: 1px solid var(--border); }
+.history-card.expanded .history-detail { display: block; }
+.detail-item {
+  display: flex; justify-content: space-between; padding: 7px 0;
+  font-size: 14px; border-bottom: 1px dashed var(--border); gap: 8px;
+}
+.detail-item:last-child { border-bottom: none; }
+.detail-item .name { flex: 1; }
+.detail-item .qty  { color: var(--text-muted); }
+.detail-item .price{ font-weight: 600; color: var(--orange-dark); min-width: 55px; }
+.item-status.taken   { color: var(--success); font-size: 12px; }
+.item-status.missing { color: var(--danger);  font-size: 12px; }
+.item-status.pending { color: #aaa;           font-size: 12px; }
+
+.status-pill { padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.pill-open    { background: var(--orange-pale); color: var(--orange-dark); }
+.pill-done    { background: #e8f5e9; color: var(--success); }
+.pill-partial { background: #fff3e0; color: #e65100; }
+
+/* ── ADMIN ── */
+.admin-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-bottom: 14px;
+}
+.admin-stat-card {
+  background: var(--white); border: 1px solid var(--border); border-radius: 16px;
+  padding: 18px; box-shadow: var(--shadow);
+}
+.admin-stat-card span { display: block; color: var(--text-muted); font-size: 13px; margin-bottom: 8px; }
+.admin-stat-card strong { display: block; color: var(--orange-dark); font-size: 28px; line-height: 1; }
+.danger-stat strong { color: var(--danger); }
+.admin-note {
+  background: #fff6ed; border: 1px solid var(--border); border-radius: 14px;
+  color: var(--text-muted); padding: 12px 16px; font-size: 13px; line-height: 1.6; margin-bottom: 16px;
+}
+.sync-card {
+  background: var(--white); border: 1px solid var(--border); border-radius: 18px;
+  padding: 18px; box-shadow: var(--shadow); margin-bottom: 16px;
+}
+.sync-card-header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px;
+}
+.sync-card h3 { color: var(--orange-dark); font-size: 17px; margin-bottom: 4px; }
+.sync-card p { color: var(--text-muted); font-size: 13px; line-height: 1.55; }
+.sync-badge {
+  flex-shrink: 0; padding: 5px 12px; border-radius: 999px; background: #e8f5e9;
+  color: var(--success); font-size: 12px; font-weight: 800;
+}
+.sync-grid {
+  display: grid; grid-template-columns: minmax(180px, 2fr) minmax(140px, 1fr) auto;
+  gap: 10px; align-items: end;
+}
+.btn-sync-products { width: auto; min-width: 150px; height: 42px; margin: 0; }
+.sync-help { margin-top: 10px; }
+.sync-status {
+  min-height: 20px; color: var(--orange-dark); font-size: 13px; font-weight: 700; margin-top: 10px;
+}
+.admin-order-card .history-card-header { background: linear-gradient(90deg, #fff, #fff8f2); }
+.admin-order-meta {
+  color: var(--text-muted); font-size: 12px; margin: 10px 0 6px;
+}
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+.empty-state .icon { font-size: 44px; margin-bottom: 10px; }
+.empty-state h3 { font-size: 17px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; top: 72px; left: 50%;
+  transform: translateX(-50%) translateY(-16px);
+  color: #fff; padding: 11px 26px;
+  border-radius: 30px; font-size: 14px; font-weight: 600;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s, transform .3s; z-index: 500;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 560px) {
+  #auth-page { padding: 16px; }
+  .auth-card { width: calc(100vw - 32px); max-width: 400px; padding: 28px 20px 32px; }
+  header { padding: 0 14px; }
+  .header-logo img { max-width: 125px; object-fit: contain; }
+  nav { padding: 0 10px; overflow-x: auto; }
+  .nav-tab { padding: 12px 14px; white-space: nowrap; }
+  main { margin: 20px auto; padding: 0 12px; }
+  .add-row { flex-direction: column; }
+  .add-row input { width: 100%; }
+  .item-row { flex-wrap: wrap; }
+  .item-name { flex-basis: 100%; }
+  .status-btns { width: 100%; justify-content: flex-start; }
+  .save-bar { width: calc(100% - 24px); justify-content: space-between; padding: 10px 16px; }
+  .header-user { gap: 7px; }
+  .role-badge { display: none; }
+  .page-title-row { align-items: flex-start; flex-direction: column; }
+  .admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-stat-card { padding: 14px; }
+  .sync-card-header { flex-direction: column; }
+  .sync-grid { grid-template-columns: 1fr; }
+  .btn-sync-products { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ AUTH PAGE ══════════ -->
+<div id="auth-page">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png"
+           alt="משנת יוסף" />
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab auth-tab-active" id="tab-login" onclick="showAuthTab('login')">כניסה</div>
+      <div class="auth-tab" id="tab-register" onclick="showAuthTab('register')">הרשמה</div>
+    </div>
+
+    <!-- LOGIN -->
+    <form id="login-form" onsubmit="doLogin(event)">
+      <div class="form-group">
+        <label>אימייל</label>
+        <input type="email" id="login-email" placeholder="your@email.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label>סיסמה</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <div class="err-msg" id="login-err"></div>
+      <button type="submit" class="btn-submit" id="btn-login">כניסה לחשבון</button>
+    </form>
+
+    <!-- REGISTER -->
+    <form id="register-form" style="display:none" onsubmit="doRegister(event)">
+      <div class="form-group">
+        <label>שם מלא</label>
+        <input type="text" id="reg-name" placeholder="ישראל ישראלי" autocomplete="name" />
+      </div>
+      <div class="form-group">
+        <label>אימייל</label>
+        <input type="email" id="reg-email" placeholder="your@email.com" autocomplete="email" />
+      </div>
+      <div class="form-group">
+        <label>סיסמה (לפחות 6 תווים)</label>
+        <input type="password" id="reg-pass" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <div class="form-group">
+        <label>אימות סיסמה</label>
+        <input type="password" id="reg-pass2" placeholder="••••••••" autocomplete="new-password" />
+      </div>
+      <div class="err-msg" id="register-err"></div>
+      <button type="submit" class="btn-submit" id="btn-register">יצירת חשבון</button>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="app">
+  <header>
+    <div class="header-logo">
+      <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png"
+           alt="משנת יוסף" />
+    </div>
+    <div class="header-user">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name"></span>
+      <span class="role-badge" id="user-role-badge">לקוח</span>
+      <button class="btn-logout" onclick="doLogout()">יציאה</button>
+    </div>
+  </header>
+
+  <nav>
+    <div class="nav-tab active" data-tab="basket" onclick="showTab('basket', this)">🧺 הסל שלי</div>
+    <div class="nav-tab" data-tab="history" onclick="showTab('history', this)">📋 היסטוריית סלים</div>
+    <div class="nav-tab nav-admin" id="nav-admin" data-tab="admin" onclick="showTab('admin', this)">👑 ניהול</div>
+  </nav>
+
+  <main>
+    <!-- BASKET PAGE -->
+    <div class="page active" id="page-basket">
+      <div class="page-title">
+        <h2>🧺 הסל שלי</h2>
+        <p>הוסף מוצרים וסמן מה לקחת, מה לא ומה היה חסר</p>
+      </div>
+
+      <!-- ADD FORM -->
+      <div class="add-form">
+        <h3>➕ הוסף מוצר לסל</h3>
+        <form class="add-row" onsubmit="addItem(event)">
+          <input class="inp-name"  id="new-name"  type="text"   placeholder="שם מוצר *" list="products-suggestions" oninput="applyProductSuggestion()" />
+          <datalist id="products-suggestions"></datalist>
+          <input class="inp-qty"   id="new-qty"   type="text"   placeholder="כמות" />
+          <input class="inp-price" id="new-price" type="text"   placeholder="מחיר" />
+          <button type="submit" class="btn-add">הוסף</button>
+        </form>
+      </div>
+
+      <!-- PROGRESS -->
+      <div class="progress-card">
+        <div class="progress-header">
+          <h3>התקדמות סימון</h3>
+          <span id="progress-text">0 / 0 מוצרים</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+        </div>
+        <div class="progress-stats">
+          <div class="stat"><div class="stat-dot dot-taken"></div><span id="stat-taken">0 נלקחו</span></div>
+          <div class="stat"><div class="stat-dot dot-missing"></div><span id="stat-missing">0 חסרים</span></div>
+          <div class="stat"><div class="stat-dot dot-pending"></div><span id="stat-pending">0 ממתינים</span></div>
+        </div>
+      </div>
+
+      <!-- ITEMS -->
+      <div id="basket-items">
+        <div class="empty-state"><div class="icon">🛒</div><h3>הסל ריק</h3><p>הוסף מוצרים באמצעות הטופס למעלה</p></div>
+      </div>
+
+      <div class="basket-actions">
+        <button class="btn-reset-statuses" onclick="resetStatuses()">איפוס סימונים</button>
+        <button class="btn-close-basket" onclick="closeBasket()">סגור סל ופתח חדש 🗂</button>
+      </div>
+    </div>
+
+    <!-- HISTORY PAGE -->
+    <div class="page" id="page-history">
+      <div class="page-title">
+        <h2>📋 היסטוריית סלים</h2>
+        <p>כל הסלים שפתחת</p>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="empty-state"><div class="icon">📋</div><h3>אין היסטוריה עדיין</h3></div>
+      </div>
+    </div>
+
+    <!-- ADMIN PAGE -->
+    <div class="page" id="page-admin">
+      <div class="page-title page-title-row">
+        <div>
+          <h2>👑 ניהול מנהל</h2>
+          <p>סקירה של משתמשים, סלים פתוחים ומוצרים חסרים</p>
+        </div>
+        <button class="btn-refresh-admin" onclick="refreshAdmin()">רענון נתונים</button>
+      </div>
+
+      <div class="admin-stats">
+        <div class="admin-stat-card">
+          <span>משתמשים</span>
+          <strong id="admin-users-count">0</strong>
+        </div>
+        <div class="admin-stat-card">
+          <span>סלים פתוחים</span>
+          <strong id="admin-open-count">0</strong>
+        </div>
+        <div class="admin-stat-card">
+          <span>סלים סגורים</span>
+          <strong id="admin-closed-count">0</strong>
+        </div>
+        <div class="admin-stat-card danger-stat">
+          <span>מוצרים חסרים</span>
+          <strong id="admin-missing-count">0</strong>
+        </div>
+        <div class="admin-stat-card">
+          <span>מוצרים במאגר</span>
+          <strong id="admin-products-count">0</strong>
+        </div>
+      </div>
+
+      <!-- סנכרון מוצרים -->
+      <div class="sync-card">
+        <div class="sync-card-header">
+          <div>
+            <h3>סנכרון מוצרים ממשנת יוסף</h3>
+            <p>שואב מוצרים, מחירים, קטגוריות ותמונות מהמכירה הפעילה בחשבון שלך.</p>
+          </div>
+          <span class="sync-badge">קריאה בלבד</span>
+        </div>
+        <div class="sync-grid">
+          <div class="form-group">
+            <label>טוקן כניסה זמני ממשנת יוסף</label>
+            <input type="password" id="mishnat-token" placeholder="לא נשמר באתר" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label>מזהה מכירה (לא חובה)</label>
+            <input type="text" id="mishnat-sale-id" placeholder="השאר ריק למכירה הפעילה" autocomplete="off" />
+          </div>
+          <button class="btn-submit btn-sync-products" id="btn-sync-products" onclick="syncMishnatProducts()">סנכרן מוצרים</button>
+        </div>
+        <p class="sync-help">הטוקן לא נשמר. אם אין הזמנה פתוחה, פתח הזמנה באתר משנת יוסף ורק אז סנכרן.</p>
+        <div class="sync-status" id="sync-status"></div>
+      </div>
+
+      <!-- ייבוא סלי לקוחות -->
+      <div class="sync-card" style="border-right: 4px solid var(--orange)">
+        <div class="sync-card-header">
+          <div>
+            <h3>ייבוא סלי לקוחות קיימים</h3>
+            <p>מביא את הסלים של כל הלקוחות מהמכירה הפעילה. בכניסה הראשונה של כל לקוח — הסל שלו יופיע אוטומטית.</p>
+          </div>
+          <span class="sync-badge" style="background:#fff3e0;color:#e65100">ייבוא חד פעמי</span>
+        </div>
+        <div class="sync-grid">
+          <div class="form-group">
+            <label>טוקן כניסה זמני (אותו טוקן מלמעלה)</label>
+            <input type="password" id="import-token" placeholder="לא נשמר באתר" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label>מזהה מכירה (לא חובה)</label>
+            <input type="text" id="import-sale-id" placeholder="השאר ריק למכירה הפעילה" autocomplete="off" />
+          </div>
+          <button class="btn-submit btn-sync-products" id="btn-import-customers" onclick="importCustomers()">ייבא לקוחות</button>
+        </div>
+        <div class="sync-status" id="import-status"></div>
+        <div id="import-preview" style="margin-top:14px"></div>
+      </div>
+
+      <div class="admin-note">
+        כניסת מנהל נקבעת לפי אימייל מורשה וחוקי אבטחה ב-Firebase. משתמש רגיל לא יכול לראות את הנתונים האלו.
+      </div>
+
+      <div class="history-list" id="admin-orders-list">
+        <div class="empty-state"><div class="icon">📋</div><h3>אין נתוני מנהל עדיין</h3></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Save bar -->
+<div class="save-bar" id="save-bar">
+  <span>⚠️ יש שינויים שלא נשמרו</span>
+  <button class="btn-save" onclick="saveBasket()">שמור</button>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<dialog class="summary-modal" id="summary-modal" onclick="if(event.target===this) closeSummary()">
+  <div class="summary-content">
+    <h2>הסל נשמר בהצלחה</h2>
+    <p>סיכום מצב המוצרים בסל הנוכחי</p>
+    <div class="summary-grid">
+      <div class="summary-stat"><strong id="summary-taken">0</strong><span>נלקחו</span></div>
+      <div class="summary-stat"><strong id="summary-missing">0</strong><span>חסרים</span></div>
+      <div class="summary-stat"><strong id="summary-pending">0</strong><span>ממתינים</span></div>
+    </div>
+    <button class="summary-close" onclick="closeSummary()">הבנתי, תודה</button>
+  </div>
+</dialog>
+
+</body>
+</html>

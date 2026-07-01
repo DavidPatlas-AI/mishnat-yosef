@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>משנת יוסף – דוח שבועי</title>
+<style>
+:root {
+  --orange:      #e87722;
+  --orange-dark: #c25e00;
+  --orange-pale: #fdeede;
+  --cream:       #fff9f5;
+  --text:        #1a1a1a;
+  --muted:       #7a6a5a;
+  --border:      #f0d8c0;
+  --success:     #2e7d32;
+  --danger:      #c62828;
+  --white:       #ffffff;
+  --shadow:      0 2px 14px rgba(232,119,34,.13);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: var(--cream); color: var(--text); direction: rtl;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+header {
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  padding: 0 24px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.header-logo img { height: 32px; filter: brightness(0) invert(1); }
+.header-title { color: #fff; font-size: 17px; font-weight: 700; }
+
+/* ── MAIN ── */
+main { max-width: 960px; margin: 28px auto; padding: 0 16px; }
+
+/* ── IMPORT ZONE ── */
+.import-card {
+  background: var(--white); border-radius: 16px;
+  padding: 24px; margin-bottom: 24px; box-shadow: var(--shadow);
+}
+.import-card h2 { font-size: 18px; color: var(--orange-dark); margin-bottom: 6px; }
+.import-card p  { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+
+.import-methods { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.btn-method {
+  padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all .2s; border: 2px solid var(--border);
+  background: var(--white); color: var(--text);
+}
+.btn-method:hover, .btn-method.active {
+  border-color: var(--orange); background: var(--orange-pale); color: var(--orange-dark);
+}
+.btn-method.primary {
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  color: #fff; border-color: transparent;
+}
+.btn-method.primary:hover { opacity: .88; }
+
+.paste-area {
+  width: 100%; min-height: 160px; padding: 12px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 13px; line-height: 1.7; color: var(--text);
+  background: var(--cream); direction: rtl; resize: vertical; outline: none;
+  font-family: inherit;
+}
+.paste-area:focus { border-color: var(--orange); background: #fff; }
+
+.import-actions { display: flex; gap: 10px; margin-top: 12px; align-items: center; }
+
+/* ── CONTROLS ── */
+.controls-bar {
+  background: var(--white); border-radius: 12px;
+  padding: 14px 18px; margin-bottom: 18px; box-shadow: var(--shadow);
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.controls-bar input, .controls-bar select {
+  padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; direction: rtl; background: var(--cream); color: var(--text);
+  outline: none;
+}
+.controls-bar input:focus, .controls-bar select:focus {
+  border-color: var(--orange); background: #fff;
+}
+.controls-bar input { flex: 1; min-width: 160px; }
+
+/* ── STATS ── */
+.stats-row {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px; margin-bottom: 18px;
+}
+.stat-card {
+  background: var(--white); border-radius: 12px;
+  padding: 14px 16px; box-shadow: var(--shadow); text-align: center;
+}
+.stat-card .lbl { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.stat-card .val { font-size: 26px; font-weight: 800; color: var(--orange-dark); }
+
+/* ── TABLE ── */
+.report-table {
+  background: var(--white); border-radius: 14px;
+  overflow: hidden; box-shadow: var(--shadow); margin-bottom: 20px;
+}
+.report-table table { width: 100%; border-collapse: collapse; }
+.report-table thead { background: linear-gradient(90deg, var(--orange-dark), var(--orange)); color: #fff; }
+.report-table th { padding: 12px 14px; font-size: 13px; font-weight: 700; text-align: right; }
+.report-table td { padding: 11px 14px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.report-table tr:last-child td { border-bottom: none; }
+.report-table tr:hover td { background: #fff5ee; }
+.row-num { color: var(--muted); font-size: 12px; min-width: 28px; }
+.customer-name { font-weight: 700; color: var(--orange-dark); }
+.parasha-tag {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  background: var(--orange-pale); color: var(--orange-dark);
+  font-size: 11px; font-weight: 700;
+}
+.products-list { line-height: 1.7; color: var(--text); }
+
+/* ── SEND PANEL ── */
+.send-panel {
+  background: var(--white); border-radius: 16px;
+  padding: 20px 22px; box-shadow: var(--shadow); margin-bottom: 20px;
+}
+.send-panel h3 { font-size: 16px; font-weight: 700; color: var(--orange-dark); margin-bottom: 14px; }
+
+.phone-row { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-end; }
+.phone-row .form-group { flex: 1; }
+.form-group label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 5px; }
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%; padding: 9px 12px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 14px; direction: rtl; background: var(--cream); outline: none;
+}
+.form-group input:focus, .form-group textarea:focus {
+  border-color: var(--orange); background: #fff;
+}
+.form-group textarea { min-height: 120px; resize: vertical; line-height: 1.6; font-size: 13px; }
+
+.send-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.btn-wa {
+  padding: 11px 22px; background: #25D366; color: #fff;
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+}
+.btn-wa:hover { background: #1da855; }
+.btn-email {
+  padding: 11px 22px; background: #1565c0; color: #fff;
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+  cursor: pointer;
+}
+.btn-email:hover { background: #0d47a1; }
+.btn-pdf {
+  padding: 11px 22px; background: var(--danger); color: #fff;
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+  cursor: pointer;
+}
+.btn-pdf:hover { opacity: .88; }
+.btn-copy {
+  padding: 11px 22px; background: var(--white); color: var(--orange-dark);
+  border: 2px solid var(--orange); border-radius: 10px; font-size: 15px; font-weight: 700;
+  cursor: pointer;
+}
+.btn-copy:hover { background: var(--orange-pale); }
+
+/* ── EMPTY ── */
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-state .icon { font-size: 52px; margin-bottom: 14px; }
+.empty-state h3 { font-size: 19px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed; top: 20px; left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  color: #fff; padding: 10px 22px; border-radius: 30px;
+  font-size: 14px; font-weight: 600;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s, transform .3s; z-index: 999;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── PRINT ── */
+@media print {
+  header, .import-card, .controls-bar, .send-panel, #toast { display: none !important; }
+  body { background: #fff; }
+  main { margin: 0; padding: 0; max-width: 100%; }
+  .stats-row, .report-table { box-shadow: none; }
+  .print-header { display: block !important; text-align: center; margin-bottom: 20px; }
+  .print-header h1 { font-size: 20px; }
+  .print-header p { font-size: 13px; color: #666; }
+}
+.print-header { display: none; }
+
+@media (max-width: 600px) {
+  .import-methods { flex-direction: column; }
+  .send-btns { flex-direction: column; }
+  .phone-row { flex-direction: column; }
+  .report-table { overflow-x: auto; }
+  header { padding: 0 12px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">
+    <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png" alt="משנת יוסף" />
+  </div>
+  <div class="header-title">📋 דוח זיכויים שבועי</div>
+</header>
+
+<main>
+
+  <!-- PRINT HEADER (visible only on print) -->
+  <div class="print-header" id="print-header">
+    <h1>משנת יוסף – דוח זיכויים שבועי</h1>
+    <p id="print-date"></p>
+  </div>
+
+  <!-- ── IMPORT ── -->
+  <div class="import-card" id="import-section">
+    <h2>📥 ייבוא נתונים מ-Google Doc</h2>
+    <p>הדבק את תוכן המסמך שמגיע מהטופס, או טען קובץ טקסט</p>
+
+    <div class="import-methods">
+      <label class="btn-method" style="cursor:pointer">
+        📁 טען קובץ טקסט
+        <input type="file" accept=".txt,.doc,.docx" style="display:none" onchange="loadFile(this)" />
+      </label>
+      <button class="btn-method" onclick="loadFromClipboard()">📋 הדבק מהלוח</button>
+      <button class="btn-method" onclick="loadSampleData()">🧪 טען דוגמה</button>
+    </div>
+
+    <textarea class="paste-area" id="raw-input"
+      placeholder="הדבק כאן את תוכן Google Doc...
+
+דוגמה לפורמט:
+בלק- יונתן דהרי - קמח כוסמין, 1 זיכוי
+חקת- זרומב - נרות שבת
+בלק- שאול יפרח - סלק 1, חצילים 1, ספגטי 2"></textarea>
+
+    <div class="import-actions">
+      <button class="btn-method primary" onclick="parseAndRender()">✅ עבד ותצג דוח</button>
+      <button class="btn-method" onclick="clearAll()">🗑 נקה הכל</button>
+    </div>
+  </div>
+
+  <!-- ── STATS ── -->
+  <div class="stats-row" id="stats-row" style="display:none">
+    <div class="stat-card"><div class="lbl">לקוחות</div><div class="val" id="st-customers">0</div></div>
+    <div class="stat-card"><div class="lbl">פרשיות</div><div class="val" id="st-parashiyot">0</div></div>
+    <div class="stat-card"><div class="lbl">שורות זיכוי</div><div class="val" id="st-entries">0</div></div>
+    <div class="stat-card"><div class="lbl">מוצרים</div><div class="val" id="st-products">0</div></div>
+  </div>
+
+  <!-- ── CONTROLS ── -->
+  <div class="controls-bar" id="controls-bar" style="display:none">
+    <input type="text" id="search-input" placeholder="🔍 חפש לקוח / מוצר..." oninput="filterTable()" />
+    <select id="filter-parasha" onchange="filterTable()">
+      <option value="">כל הפרשיות</option>
+    </select>
+    <select id="sort-by" onchange="filterTable()">
+      <option value="order">לפי סדר הגעה</option>
+      <option value="customer">לפי שם לקוח א-ת</option>
+      <option value="parasha">לפי פרשה</option>
+    </select>
+  </div>
+
+  <!-- ── TABLE ── -->
+  <div id="report-area">
+    <div class="empty-state">
+      <div class="icon">📄</div>
+      <h3>ממתין לנתונים</h3>
+      <p>הדבק את תוכן ה-Google Doc ולחץ "עבד ותצג דוח"</p>
+    </div>
+  </div>
+
+  <!-- ── SEND PANEL ── -->
+  <div class="send-panel" id="send-panel" style="display:none">
+    <h3>📤 שליחה</h3>
+
+    <div class="phone-row">
+      <div class="form-group">
+        <label>מספר WhatsApp לשליחה (עם קוד מדינה)</label>
+        <input type="tel" id="wa-phone" placeholder="9725XXXXXXXX" value="972" />
+      </div>
+      <div class="form-group">
+        <label>כתובת מייל</label>
+        <input type="email" id="email-to" placeholder="example@gmail.com" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>תוכן ההודעה (ניתן לערוך)</label>
+      <textarea id="message-preview"></textarea>
+    </div>
+
+    <div class="send-btns">
+      <button class="btn-wa" onclick="sendWhatsApp()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        שלח ב-WhatsApp
+      </button>
+      <button class="btn-email" onclick="sendEmail()">📧 שלח במייל</button>
+      <button class="btn-pdf" onclick="window.print()">🖨️ הדפס / PDF</button>
+      <button class="btn-copy" onclick="copyMessage()">📋 העתק הודעה</button>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════
+let allEntries = [];      // { parasha, customer, products, raw }
+let filtered   = [];
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+function toast(msg, color = '#333') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = color;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ══════════════════════════════════════════
+//  PARSE
+// ══════════════════════════════════════════
+function parseDocText(raw) {
+  if (!raw?.trim()) return [];
+
+  // Remove markdown bold markers and clean up
+  let text = raw
+    .replace(/\*\*/g, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const entries = [];
+  let buffer = '';
+
+  for (const line of lines) {
+    // Does this line start a new entry? (contains a dash after some text)
+    const isDashLine = /^[^-]+-[^-]+-/.test(line);
+
+    if (isDashLine) {
+      if (buffer) {
+        // flush previous buffer as continuation of last entry
+        if (entries.length > 0) {
+          entries[entries.length - 1].products += ' ' + buffer.trim();
+          entries[entries.length - 1].raw += '\n' + buffer.trim();
+        }
+        buffer = '';
+      }
+      // Parse the new entry
+      const firstDash = line.indexOf('-');
+      const parasha = line.slice(0, firstDash).trim();
+      const rest = line.slice(firstDash + 1).trim();
+      const secondDash = rest.indexOf('-');
+      if (secondDash === -1) {
+        // Only one dash found — treat whole rest as customer+products
+        entries.push({ parasha, customer: rest, products: '', raw: line });
+      } else {
+        const customer = rest.slice(0, secondDash).trim();
+        const products = rest.slice(secondDash + 1).trim();
+        entries.push({ parasha, customer, products, raw: line });
+      }
+    } else {
+      // Continuation line — append to last entry's products
+      if (entries.length > 0) {
+        entries[entries.length - 1].products += ' ' + line;
+        entries[entries.length - 1].raw += '\n' + line;
+      }
+    }
+  }
+
+  // Clean up products
+  return entries.map(e => ({
+    ...e,
+    parasha:  e.parasha.trim(),
+    customer: e.customer.trim(),
+    products: e.products.trim().replace(/\s+/g, ' ')
+  })).filter(e => e.customer);
+}
+
+function countProducts(productsStr) {
+  if (!productsStr) return 0;
+  // Count comma/period separated items
+  return productsStr.split(/[,.]/).filter(s => s.trim()).length;
+}
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function parseAndRender() {
+  const raw = document.getElementById('raw-input').value;
+  allEntries = parseDocText(raw);
+
+  if (!allEntries.length) {
+    toast('לא נמצאו שורות בפורמט הצפוי', '#c62828');
+    return;
+  }
+
+  // Populate parasha filter
+  const parashiyot = [...new Set(allEntries.map(e => e.parasha))].filter(Boolean);
+  const sel = document.getElementById('filter-parasha');
+  sel.innerHTML = '<option value="">כל הפרשיות</option>' +
+    parashiyot.map(p => `<option value="${escHtml(p)}">${escHtml(p)}</option>`).join('');
+
+  filterTable();
+  updateStats();
+  updateMessagePreview();
+
+  document.getElementById('stats-row').style.display = '';
+  document.getElementById('controls-bar').style.display = '';
+  document.getElementById('send-panel').style.display = '';
+  document.getElementById('import-section').style.display = 'none';
+
+  toast(`נטענו ${allEntries.length} שורות זיכוי`, '#2e7d32');
+}
+
+function filterTable() {
+  const search  = document.getElementById('search-input').value.trim().toLocaleLowerCase('he-IL');
+  const parasha = document.getElementById('filter-parasha').value;
+  const sortBy  = document.getElementById('sort-by').value;
+
+  filtered = allEntries.filter(e => {
+    const matchP = !parasha || e.parasha === parasha;
+    const matchS = !search ||
+      e.customer.toLocaleLowerCase('he-IL').includes(search) ||
+      e.products.toLocaleLowerCase('he-IL').includes(search) ||
+      e.parasha.toLocaleLowerCase('he-IL').includes(search);
+    return matchP && matchS;
+  });
+
+  if (sortBy === 'customer') {
+    filtered.sort((a, b) => a.customer.localeCompare(b.customer, 'he'));
+  } else if (sortBy === 'parasha') {
+    filtered.sort((a, b) => a.parasha.localeCompare(b.parasha, 'he'));
+  }
+
+  renderTable(filtered);
+  updateMessagePreview();
+}
+
+function renderTable(entries) {
+  const area = document.getElementById('report-area');
+  if (!entries.length) {
+    area.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><h3>אין תוצאות</h3><p>נסה לשנות את סינון החיפוש</p></div>';
+    return;
+  }
+
+  const rows = entries.map((e, i) => `
+    <tr>
+      <td class="row-num">${i + 1}</td>
+      <td><span class="parasha-tag">${escHtml(e.parasha)}</span></td>
+      <td class="customer-name">${escHtml(e.customer)}</td>
+      <td class="products-list">${escHtml(e.products)}</td>
+    </tr>`).join('');
+
+  area.innerHTML = `
+    <div class="report-table">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>פרשה</th>
+            <th>לקוח</th>
+            <th>פריטים לזיכוי</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function updateStats() {
+  const customers  = new Set(allEntries.map(e => e.customer)).size;
+  const parashiyot = new Set(allEntries.map(e => e.parasha)).size;
+  const products   = allEntries.reduce((s, e) => s + countProducts(e.products), 0);
+
+  document.getElementById('st-customers').textContent   = customers;
+  document.getElementById('st-parashiyot').textContent  = parashiyot;
+  document.getElementById('st-entries').textContent     = allEntries.length;
+  document.getElementById('st-products').textContent    = products;
+}
+
+// ══════════════════════════════════════════
+//  MESSAGE BUILDER
+// ══════════════════════════════════════════
+function buildMessage(entries) {
+  const today = new Date().toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const parashiyot = [...new Set(entries.map(e => e.parasha))].join(', ');
+
+  let msg = `📋 *דוח זיכויים - משנת יוסף*\n`;
+  msg += `📅 ${today}\n`;
+  if (parashiyot) msg += `📖 פרשה: ${parashiyot}\n`;
+  msg += `\n`;
+
+  entries.forEach((e, i) => {
+    msg += `${i + 1}. *${e.customer}*`;
+    if (e.parasha) msg += ` (${e.parasha})`;
+    msg += `\n`;
+    if (e.products) msg += `   ${e.products}\n`;
+    msg += `\n`;
+  });
+
+  msg += `─────────────────\n`;
+  msg += `סה"כ: ${entries.length} לקוחות\n`;
+  msg += `*משנת יוסף – שירות לקוחות*`;
+
+  return msg;
+}
+
+function updateMessagePreview() {
+  const entries = filtered.length ? filtered : allEntries;
+  document.getElementById('message-preview').value = buildMessage(entries);
+  document.getElementById('print-date').textContent =
+    'תאריך: ' + new Date().toLocaleDateString('he-IL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+// ══════════════════════════════════════════
+//  SEND
+// ══════════════════════════════════════════
+function sendWhatsApp() {
+  const phone = document.getElementById('wa-phone').value.trim().replace(/\D/g, '');
+  const msg   = document.getElementById('message-preview').value;
+  if (!phone) { toast('יש להזין מספר WhatsApp', '#c62828'); return; }
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+  window.open(url, '_blank');
+}
+
+function sendEmail() {
+  const to   = document.getElementById('email-to').value.trim();
+  const msg  = document.getElementById('message-preview').value;
+  const today = new Date().toLocaleDateString('he-IL');
+  const parashiyot = [...new Set(allEntries.map(e => e.parasha))].join(', ');
+  const subject = encodeURIComponent(`דוח זיכויים משנת יוסף – ${parashiyot || today}`);
+  const body    = encodeURIComponent(msg);
+  window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+}
+
+function copyMessage() {
+  const msg = document.getElementById('message-preview').value;
+  navigator.clipboard.writeText(msg).then(() => {
+    toast('ההודעה הועתקה ללוח!', '#2e7d32');
+  }).catch(() => {
+    const ta = document.getElementById('message-preview');
+    ta.select();
+    document.execCommand('copy');
+    toast('ההודעה הועתקה!', '#2e7d32');
+  });
+}
+
+// ══════════════════════════════════════════
+//  IMPORT HELPERS
+// ══════════════════════════════════════════
+async function loadFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('raw-input').value = text;
+    toast('תוכן הלוח הודבק', '#2e7d32');
+  } catch {
+    toast('לא ניתן לגשת ללוח – הדבק ידנית', '#e87722');
+  }
+}
+
+function loadFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('raw-input').value = e.target.result;
+    toast(`נטען: ${file.name}`, '#2e7d32');
+  };
+  reader.readAsText(file, 'UTF-8');
+  input.value = '';
+}
+
+function loadSampleData() {
+  document.getElementById('raw-input').value = `בלק- יונתן דהרי - קרטון בצבע ירוק זית קמח כוסמין, 1 זיכוי
+חקת- זרומב - נרות שבת
+בלק תשפו- שאול יפרח - סלק 1, בייבי שף תפו"א 1, חצילים 1, עגבניות שרי אדומות 1, ספגטי 2, מנורת לד שולחנית 1, פלסטרים 1
+במדבר- שאול רויזן - 2 זיתים
+חוקת- איתמר חסן - מלפפון חמוץ, אבוב שחור, גלגל ים צהוב לתינוקות
+בלק- אריאל דידי - 2 ליטר חלב
+בלק- שהם עמיחי - קורנפלקס דבש קייטי
+בלק תשפו- אהוביה גרוסברג - זיכוי: אבטיח גדול, קטשופ אסם, נייר סופג גלילים כפולים, חמישית טישו, דפי ממו צבעוניים`;
+  toast('דוגמה נטענה', '#2e7d32');
+}
+
+function clearAll() {
+  allEntries = []; filtered = [];
+  document.getElementById('raw-input').value = '';
+  document.getElementById('report-area').innerHTML = `
+    <div class="empty-state">
+      <div class="icon">📄</div>
+      <h3>ממתין לנתונים</h3>
+      <p>הדבק את תוכן ה-Google Doc ולחץ "עבד ותצג דוח"</p>
+    </div>`;
+  document.getElementById('stats-row').style.display     = 'none';
+  document.getElementById('controls-bar').style.display  = 'none';
+  document.getElementById('send-panel').style.display    = 'none';
+  document.getElementById('import-section').style.display = '';
+}
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Show import section again if user wants to reload
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('import-section').style.display === 'none') {
+    document.getElementById('import-section').style.display = '';
+  }
+});
+</script>
+</body>
+</html>

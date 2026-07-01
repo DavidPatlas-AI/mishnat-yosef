@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>משנת יוסף – דוח זיכויים שבועי</title>
+<style>
+:root {
+  --orange: #e87722; --orange-dark: #c25e00; --orange-pale: #fdeede;
+  --cream: #fff9f5; --text: #1a1a1a; --muted: #7a6a5a;
+  --border: #f0d8c0; --success: #2e7d32; --white: #ffffff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--cream); color: var(--text); direction: rtl; }
+
+header {
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.logo img { height: 34px; filter: brightness(0) invert(1); }
+.header-meta { color: rgba(255,255,255,.9); font-size: 13px; text-align: left; }
+.header-meta strong { display: block; font-size: 16px; color: #fff; margin-bottom: 2px; }
+
+main { max-width: 800px; margin: 28px auto; padding: 0 16px; }
+
+/* ACTION BAR */
+.action-bar {
+  background: var(--white); border-radius: 14px; padding: 16px 20px;
+  box-shadow: 0 2px 14px rgba(232,119,34,.13); margin-bottom: 22px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.action-bar p { flex: 1; min-width: 200px; font-size: 13px; color: var(--muted); }
+.btn-wa {
+  padding: 10px 20px; background: #25D366; color: #fff;
+  border: none; border-radius: 9px; font-size: 14px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 7px;
+}
+.btn-wa:hover { background: #1da855; }
+.btn-email {
+  padding: 10px 20px; background: #1565c0; color: #fff;
+  border: none; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.btn-email:hover { background: #0d47a1; }
+.btn-print {
+  padding: 10px 20px; background: var(--white); color: var(--orange-dark);
+  border: 2px solid var(--orange); border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.btn-print:hover { background: var(--orange-pale); }
+.btn-copy {
+  padding: 10px 16px; background: var(--white); color: var(--muted);
+  border: 1.5px solid var(--border); border-radius: 9px; font-size: 13px; cursor: pointer;
+}
+.btn-copy:hover { border-color: var(--orange); color: var(--orange-dark); }
+
+/* STATS */
+.stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 20px; }
+.stat-card {
+  background: var(--white); border-radius: 12px; padding: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07); text-align: center;
+}
+.stat-card .v { font-size: 28px; font-weight: 800; color: var(--orange-dark); }
+.stat-card .l { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+/* REPORT */
+.report-card {
+  background: var(--white); border-radius: 14px;
+  overflow: hidden; box-shadow: 0 2px 14px rgba(232,119,34,.1);
+  margin-bottom: 20px;
+}
+.report-card-header {
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  padding: 12px 18px; color: #fff;
+}
+.report-card-header h2 { font-size: 16px; margin-bottom: 2px; }
+.report-card-header p  { font-size: 12px; opacity: .85; }
+
+.report-table { width: 100%; border-collapse: collapse; }
+.report-table th {
+  padding: 10px 16px; text-align: right; font-size: 12px; font-weight: 700;
+  color: var(--muted); background: #fdf6f0; border-bottom: 2px solid var(--border);
+}
+.report-table td { padding: 11px 16px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.report-table tr:last-child td { border-bottom: none; }
+.report-table tr:hover td { background: #fff9f5; }
+.num-cell { color: var(--muted); font-size: 12px; width: 36px; }
+.name-cell { font-weight: 700; color: var(--orange-dark); }
+.parasha-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  background: var(--orange-pale); color: var(--orange-dark);
+  font-size: 11px; font-weight: 700;
+}
+.items-cell { color: var(--text); line-height: 1.65; }
+
+/* FOOTER */
+.report-footer {
+  background: var(--white); border-radius: 12px; padding: 14px 18px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07); margin-bottom: 20px;
+  font-size: 13px; color: var(--muted); line-height: 1.6;
+}
+.report-footer strong { color: var(--text); }
+
+/* TOAST */
+#toast {
+  position: fixed; top: 18px; left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  color: #fff; padding: 9px 22px; border-radius: 28px;
+  font-size: 13px; font-weight: 600;
+  opacity: 0; pointer-events: none; transition: all .3s; z-index: 999;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* PRINT */
+@media print {
+  .action-bar { display: none; }
+  body { background: #fff; }
+  main { margin: 0; max-width: 100%; }
+}
+
+@media (max-width: 560px) {
+  .stats { grid-template-columns: repeat(3,1fr); gap: 6px; }
+  .stat-card .v { font-size: 22px; }
+  .action-bar { flex-direction: column; }
+  .btn-wa,.btn-email,.btn-print,.btn-copy { width: 100%; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png" alt="משנת יוסף" />
+  </div>
+  <div class="header-meta">
+    <strong>דוח זיכויים שבועי</strong>
+    <span id="report-date"></span>
+  </div>
+</header>
+
+<main>
+
+  <div class="action-bar">
+    <p>הדוח מוכן לשליחה. בחר אמצעי שליחה:</p>
+    <button class="btn-wa" onclick="sendWA()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+      WhatsApp
+    </button>
+    <button class="btn-email" onclick="sendEmail()">📧 מייל</button>
+    <button class="btn-print" onclick="window.print()">🖨️ PDF</button>
+    <button class="btn-copy" onclick="copyMsg()">📋 העתק</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="v" id="st-customers">0</div><div class="l">לקוחות</div></div>
+    <div class="stat-card"><div class="v" id="st-items">0</div><div class="l">פריטי זיכוי</div></div>
+    <div class="stat-card"><div class="v" id="st-weeks">0</div><div class="l">פרשיות</div></div>
+  </div>
+
+  <div class="report-card">
+    <div class="report-card-header">
+      <h2>📋 רשימת זיכויים</h2>
+      <p>נתונים מה-Google Doc · ממוינים לפי לקוח</p>
+    </div>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th class="num-cell">#</th>
+          <th>פרשה</th>
+          <th>לקוח</th>
+          <th>פריטים לזיכוי</th>
+        </tr>
+      </thead>
+      <tbody id="report-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="report-footer">
+    <strong>הוראות שליחה:</strong><br>
+    WhatsApp — ישלח לנמען שתבחר. מייל — פותח את לקוח המייל שלך. PDF — הדפס ושמור.<br><br>
+    <strong>לעדכון הדוח:</strong> בקש מ-Claude Code "תעדכן את דוח הזיכויים" — הוא יקרא את ה-Google Doc ויחדש את הקובץ.
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ══ DATA (מוזן על ידי Claude Code מה-Google Doc) ══
+const REPORT_DATA = {
+  generatedAt: "2026-06-26",
+  parasha: "בלק / חקת / במדבר",
+  entries: [
+    { parasha: "בלק",       customer: "יונתן דהרי",     items: "קמח כוסמין, זיכוי (קרטון בצבע ירוק זית)" },
+    { parasha: "חקת",       customer: "זרומב",           items: "נרות שבת" },
+    { parasha: "בלק תשפו",  customer: "שאול יפרח",      items: "סלק 1, בייבי שף תפו\"א 1, חצילים 1, עגבניות שרי אדומות 1, ספגטי 2, מנורת לד שולחנית 1, פלסטרים 1" },
+    { parasha: "במדבר",     customer: "שאול רויזן",      items: "זיתים 2" },
+    { parasha: "חוקת",      customer: "איתמר חסן",       items: "מלפפון חמוץ, אבוב שחור, גלגל ים צהוב לתינוקות" },
+    { parasha: "בלק",       customer: "אריאל דידי",      items: "חלב 2 ליטר" },
+    { parasha: "בלק",       customer: "שהם עמיחי",       items: "קורנפלקס דבש קייטי" },
+    { parasha: "בלק תשפו",  customer: "אהוביה גרוסברג",  items: "אבטיח גדול, קטשופ אסם, נייר סופג גלילים כפולים, חמישית טישו, דפי ממו צבעוניים" }
+  ]
+};
+
+// ══ RENDER ══
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function render() {
+  const d = REPORT_DATA;
+  document.getElementById('report-date').textContent = 'תאריך הפקה: ' + d.generatedAt;
+
+  const customers = new Set(d.entries.map(e => e.customer)).size;
+  const weeks     = new Set(d.entries.map(e => e.parasha)).size;
+  const itemCount = d.entries.reduce((s, e) => s + e.items.split(',').length, 0);
+
+  document.getElementById('st-customers').textContent = customers;
+  document.getElementById('st-items').textContent     = itemCount;
+  document.getElementById('st-weeks').textContent     = weeks;
+
+  document.getElementById('report-tbody').innerHTML = d.entries.map((e, i) => `
+    <tr>
+      <td class="num-cell">${i + 1}</td>
+      <td><span class="parasha-pill">${escHtml(e.parasha)}</span></td>
+      <td class="name-cell">${escHtml(e.customer)}</td>
+      <td class="items-cell">${escHtml(e.items)}</td>
+    </tr>`).join('');
+}
+
+// ══ MESSAGE ══
+function buildMessage() {
+  const d = REPORT_DATA;
+  let msg = `📋 *דוח זיכויים – משנת יוסף*\n`;
+  msg += `📅 ${d.generatedAt} | פרשת ${d.parasha}\n`;
+  msg += `👥 ${d.entries.length} לקוחות\n\n`;
+  d.entries.forEach((e, i) => {
+    msg += `${i + 1}. *${e.customer}* (${e.parasha})\n`;
+    msg += `   ${e.items}\n\n`;
+  });
+  msg += `─────────────────────\n`;
+  msg += `סה"כ ${d.entries.length} לקוחות | *משנת יוסף שירות לקוחות*`;
+  return msg;
+}
+
+// ══ ACTIONS ══
+function sendWA() {
+  const phone = prompt('מספר WhatsApp (עם קוד מדינה, ללא +):', '972');
+  if (!phone) return;
+  window.open(`https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(buildMessage())}`, '_blank');
+}
+
+function sendEmail() {
+  const to = prompt('כתובת מייל:', '');
+  if (to === null) return;
+  const subject = encodeURIComponent(`דוח זיכויים משנת יוסף – ${REPORT_DATA.parasha} ${REPORT_DATA.generatedAt}`);
+  window.location.href = `mailto:${to}?subject=${subject}&body=${encodeURIComponent(buildMessage())}`;
+}
+
+function copyMsg() {
+  navigator.clipboard.writeText(buildMessage()).then(() => {
+    showToast('ההודעה הועתקה!', '#2e7d32');
+  }).catch(() => {
+    showToast('לא הצליח — נסה ידנית', '#c62828');
+  });
+}
+
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.background = color;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+render();
+</script>
+</body>
+</html>

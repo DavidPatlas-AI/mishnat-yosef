@@ -1,0 +1,36 @@
+{
+  "name": "משנת יוסף – ניהול קנייה",
+  "short_name": "משנת יוסף",
+  "description": "ניהול סל קנייה ודוח זיכויים שבועי",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#fff9f5",
+  "theme_color": "#c25e00",
+  "lang": "he",
+  "dir": "rtl",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "הסל שלי",
+      "url": "/index.html#basket",
+      "description": "פתח את הסל שלי"
+    },
+    {
+      "name": "דוח שבועי",
+      "url": "/דוח-זיכויים.html",
+      "description": "דוח זיכויים שבועי"
+    }
+  ]
+}

@@ -1,0 +1,2702 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#c25e00" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="משנת יוסף" />
+<link rel="manifest" href="manifest.json" />
+<title>משנת יוסף – ניהול קנייה</title>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+</script>
+
+<style>
+:root {
+  --orange:      #e87722;
+  --orange-dark: #c25e00;
+  --orange-pale: #fdeede;
+  --cream:       #fff9f5;
+  --text:        #1a1a1a;
+  --muted:       #7a6a5a;
+  --border:      #f0d8c0;
+  --success:     #2e7d32;
+  --danger:      #c62828;
+  --warn:        #e65100;
+  --white:       #ffffff;
+  --shadow:      0 2px 14px rgba(232,119,34,.13);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { max-width: 100%; overflow-x: hidden; }
+body {
+  min-height: 100vh;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: var(--cream); color: var(--text); direction: rtl;
+}
+
+/* ══ SCREENS ══ */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ══ START SCREEN ══ */
+#screen-start {
+  min-height: 100vh;
+  display: none;
+  align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--orange-dark), var(--orange));
+}
+#screen-start.active { display: flex; }
+
+.start-card {
+  background: var(--white);
+  border-radius: 18px;
+  padding: 36px;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 10px 40px rgba(0,0,0,.22);
+}
+.start-logo { text-align: center; margin-bottom: 24px; }
+.start-logo img { width: 200px; height: auto; }
+.start-card h2 { font-size: 20px; color: var(--orange-dark); margin-bottom: 6px; text-align: center; }
+.start-card p  { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 24px; }
+
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--orange-dark); margin-bottom: 5px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 10px 13px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 15px; color: var(--text); background: var(--cream);
+  outline: none; direction: rtl;
+}
+.form-group input:focus, .form-group select:focus {
+  border-color: var(--orange); background: #fff;
+}
+.or-divider { text-align: center; color: var(--muted); font-size: 13px; margin: 10px 0; position: relative; }
+.or-divider::before, .or-divider::after {
+  content: ''; position: absolute; top: 50%; width: 42%; height: 1px; background: var(--border);
+}
+.or-divider::before { right: 0; }
+.or-divider::after  { left: 0; }
+
+.btn-primary {
+  width: 100%; padding: 12px;
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  color: #fff; border: none; border-radius: 8px;
+  font-size: 16px; font-weight: 700; cursor: pointer; transition: opacity .2s;
+}
+.btn-primary:hover { opacity: .88; }
+.btn-primary:disabled { opacity: .5; cursor: default; }
+.btn-secondary {
+  width: 100%; padding: 11px;
+  background: transparent; color: var(--orange-dark);
+  border: 2px solid var(--orange); border-radius: 8px;
+  font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 8px;
+  transition: all .2s;
+}
+.btn-secondary:hover { background: var(--orange-pale); }
+.err-msg { color: var(--danger); font-size: 13px; min-height: 18px; margin-top: 8px; text-align: center; }
+
+/* ══ ADMIN LOGIN ══ */
+#screen-admin-login {
+  min-height: 100vh; display: none;
+  align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #6a0000, #c62828);
+}
+#screen-admin-login.active { display: flex; }
+.admin-badge {
+  display: inline-block; padding: 4px 14px; border-radius: 20px;
+  background: #ffebee; color: var(--danger); font-size: 12px; font-weight: 800;
+  margin-bottom: 16px;
+}
+
+/* ══ HEADER ══ */
+header {
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  padding: 0 20px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+.header-logo img { height: 32px; filter: brightness(0) invert(1); }
+.header-info { display: flex; align-items: center; gap: 10px; color: #fff; font-size: 14px; }
+.avatar {
+  width: 32px; height: 32px; background: #fff; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 14px; color: var(--orange-dark);
+}
+.role-pill {
+  padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700;
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3); color: #fff;
+}
+.role-pill.admin { background: #fff; color: var(--danger); }
+.btn-logout {
+  background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+  color: #fff; padding: 4px 12px; border-radius: 20px; cursor: pointer; font-size: 13px;
+}
+.btn-logout:hover { background: rgba(255,255,255,.3); }
+.offline-badge {
+  background: #43a047; color: #fff; font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px;
+}
+
+/* ══ NAV ══ */
+nav {
+  background: var(--white); border-bottom: 2px solid var(--border);
+  padding: 0 20px; display: flex; gap: 4px; overflow-x: auto;
+}
+.nav-tab {
+  padding: 13px 18px; font-size: 15px; font-weight: 600;
+  color: var(--muted); cursor: pointer; white-space: nowrap;
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  transition: color .2s, border-color .2s;
+}
+.nav-tab:hover { color: var(--orange-dark); }
+.nav-tab.active { color: var(--orange-dark); border-bottom-color: var(--orange); }
+
+/* ══ MAIN ══ */
+main { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+.page { display: none; }
+.page.active { display: block; }
+
+.page-title { margin-bottom: 20px; }
+.page-title h2 { font-size: 21px; font-weight: 700; color: var(--orange-dark); margin-bottom: 3px; }
+.page-title p  { font-size: 14px; color: var(--muted); }
+.page-title-row {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+}
+.page-title-row h2 { font-size: 21px; font-weight: 700; color: var(--orange-dark); }
+.page-title-row p  { font-size: 14px; color: var(--muted); }
+
+/* ══ ADD FORM ══ */
+.add-form {
+  background: var(--white); border-radius: 12px;
+  padding: 16px 18px; margin-bottom: 18px; box-shadow: var(--shadow);
+}
+.add-form h3 { font-size: 15px; font-weight: 700; color: var(--orange-dark); margin-bottom: 12px; }
+.add-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+.add-row input {
+  padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 14px; color: var(--text); background: var(--cream); outline: none; direction: rtl;
+}
+.add-row input:focus { border-color: var(--orange); background: #fff; }
+.inp-name  { flex: 2; min-width: 160px; }
+.inp-qty   { flex: 1; min-width: 80px; }
+.inp-price { flex: 1; min-width: 90px; }
+.btn-add {
+  padding: 9px 20px; background: var(--orange); color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.btn-add:hover { opacity: .88; }
+
+/* ══ PROGRESS ══ */
+.progress-card {
+  background: var(--white); border-radius: 12px;
+  padding: 14px 18px; margin-bottom: 16px; box-shadow: var(--shadow);
+}
+.progress-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+}
+.progress-header h3 { font-size: 13px; color: var(--muted); }
+.progress-header span { font-size: 13px; font-weight: 700; color: var(--orange-dark); }
+.progress-bar-wrap { background: #eee; border-radius: 99px; height: 9px; overflow: hidden; margin-bottom: 10px; }
+.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--orange-dark), var(--orange)); border-radius: 99px; transition: width .4s; }
+.progress-stats { display: flex; gap: 14px; font-size: 13px; flex-wrap: wrap; }
+.stat { display: flex; align-items: center; gap: 5px; }
+.stat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dot-ok      { background: var(--success); }
+.dot-missing { background: var(--danger); }
+.dot-damaged { background: var(--warn); }
+.dot-pending { background: #bbb; }
+
+/* ══ PRODUCT CARDS ══ */
+#basket-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.product-card {
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(232,119,34,.12);
+  overflow: hidden;
+  transition: transform .15s, box-shadow .15s;
+  border: 2px solid transparent;
+  position: relative;
+}
+.product-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(232,119,34,.18); }
+.product-card.ok      { border-color: var(--success); }
+.product-card.missing { border-color: var(--danger); }
+.product-card.damaged { border-color: var(--warn); }
+
+/* Status ribbon */
+.card-ribbon {
+  position: absolute; top: 10px; left: 10px;
+  padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 800;
+  display: none;
+}
+.product-card.ok      .card-ribbon { display: block; background: #e8f5e9; color: var(--success); }
+.product-card.missing .card-ribbon { display: block; background: #ffebee; color: var(--danger); }
+.product-card.damaged .card-ribbon { display: block; background: #fff8e1; color: var(--warn); }
+
+/* Image area */
+.card-img {
+  width: 100%; height: 120px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--orange-pale), #fff8f0);
+  font-size: 52px; position: relative; overflow: hidden;
+}
+.card-img img { width: 100%; height: 100%; object-fit: cover; }
+.card-img-placeholder { font-size: 48px; user-select: none; }
+
+.product-card.ok      .card-img { background: linear-gradient(135deg,#e8f5e9,#f1fff2); }
+.product-card.missing .card-img { background: linear-gradient(135deg,#ffebee,#fff5f6); }
+.product-card.damaged .card-img { background: linear-gradient(135deg,#fff8e1,#fffde7); }
+
+/* Category color stripe at top of card */
+.product-card::before {
+  content: ''; display: block;
+  height: 4px; border-radius: 14px 14px 0 0;
+  background: var(--cat-color, var(--orange));
+}
+.product-card[data-cat="dairy"]   { --cat-color: #64b5f6; }
+.product-card[data-cat="bread"]   { --cat-color: #ffb74d; }
+.product-card[data-cat="veggie"]  { --cat-color: #81c784; }
+.product-card[data-cat="fruit"]   { --cat-color: #e57373; }
+.product-card[data-cat="meat"]    { --cat-color: #a1887f; }
+.product-card[data-cat="sauce"]   { --cat-color: #ffd54f; }
+.product-card[data-cat="pasta"]   { --cat-color: #ffcc80; }
+.product-card[data-cat="drink"]   { --cat-color: #80deea; }
+.product-card[data-cat="olives"]  { --cat-color: #aed581; }
+.product-card[data-cat="candle"]  { --cat-color: #ce93d8; }
+.product-card[data-cat="clean"]   { --cat-color: #80cbc4; }
+.product-card[data-cat="paper"]   { --cat-color: #b0bec5; }
+.product-card[data-cat="health"]  { --cat-color: #ef9a9a; }
+.product-card[data-cat="baby"]    { --cat-color: #f48fb1; }
+
+/* Card body */
+.card-body { padding: 12px 14px 10px; }
+.card-name {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  line-height: 1.3; margin-bottom: 6px;
+}
+.card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.card-qty {
+  font-size: 12px; color: var(--muted);
+  background: var(--orange-pale); padding: 2px 9px; border-radius: 20px;
+}
+.card-price {
+  font-size: 13px; font-weight: 700; color: var(--orange-dark);
+}
+.card-note {
+  font-size: 12px; color: var(--muted); background: #fffde7;
+  border-radius: 6px; padding: 4px 8px; margin-bottom: 8px;
+  border-right: 3px solid #ffc107;
+}
+
+/* Action buttons */
+.card-actions {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px;
+}
+.card-btn {
+  padding: 10px 4px; border-radius: 10px; font-size: 12px; font-weight: 700;
+  cursor: pointer; border: 2px solid transparent; transition: all .15s;
+  text-align: center; line-height: 1.3; background: var(--cream);
+}
+.card-btn .btn-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+.card-btn.ok-btn      { border-color: #c8e6c9; color: var(--success); }
+.card-btn.ok-btn.active, .card-btn.ok-btn:active {
+  background: var(--success); color: #fff; border-color: var(--success);
+  transform: scale(.97);
+}
+.card-btn.missing-btn { border-color: #ffcdd2; color: var(--danger); }
+.card-btn.missing-btn.active, .card-btn.missing-btn:active {
+  background: var(--danger); color: #fff; border-color: var(--danger);
+  transform: scale(.97);
+}
+.card-btn.damaged-btn { border-color: #ffe0b2; color: var(--warn); }
+.card-btn.damaged-btn.active, .card-btn.damaged-btn:active {
+  background: var(--warn); color: #fff; border-color: var(--warn);
+  transform: scale(.97);
+}
+
+/* Card footer */
+.card-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 14px 10px; gap: 8px;
+}
+.card-foot-btn {
+  font-size: 12px; color: var(--muted); background: none; border: none;
+  cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: all .15s;
+}
+.card-foot-btn:hover { background: var(--orange-pale); color: var(--orange-dark); }
+.card-foot-btn.danger:hover { background: #ffebee; color: var(--danger); }
+
+/* Note input in card */
+.card-note-input {
+  margin: 0 14px 10px;
+  display: none;
+}
+.card-note-input.visible { display: flex; gap: 6px; }
+.card-note-input input {
+  flex: 1; padding: 7px 10px; border: 1.5px solid var(--border);
+  border-radius: 8px; font-size: 13px; direction: rtl; outline: none;
+}
+.card-note-input input:focus { border-color: var(--orange); }
+.card-note-input button {
+  padding: 7px 14px; background: var(--orange); color: #fff;
+  border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+
+/* ══ CARD ANIMATIONS ══ */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.product-card { animation: cardIn .22s ease both; }
+#basket-items .product-card:nth-child(1)  { animation-delay: .03s; }
+#basket-items .product-card:nth-child(2)  { animation-delay: .06s; }
+#basket-items .product-card:nth-child(3)  { animation-delay: .09s; }
+#basket-items .product-card:nth-child(4)  { animation-delay: .12s; }
+#basket-items .product-card:nth-child(5)  { animation-delay: .15s; }
+#basket-items .product-card:nth-child(n+6){ animation-delay: .18s; }
+
+@keyframes btnPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(.88); }
+  70%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.card-btn.pop { animation: btnPop .3s ease; }
+
+/* ══ BADGE on header ══ */
+.basket-count-badge {
+  background: rgba(255,255,255,.25); color: #fff;
+  font-size: 11px; font-weight: 800; padding: 1px 7px;
+  border-radius: 10px; margin-right: 4px;
+}
+
+/* ══ DRAG HANDLE ══ */
+.drag-handle {
+  cursor: grab; color: #ccc; font-size: 16px;
+  position: absolute; top: 8px; right: 8px;
+  line-height: 1; user-select: none;
+}
+.drag-handle:active { cursor: grabbing; }
+.product-card.dragging { opacity: .45; box-shadow: none; }
+.product-card.drag-over { border-color: var(--orange) !important; background: var(--orange-pale); }
+
+/* ══ SWIPE HINT on mobile ══ */
+@media (max-width: 560px) {
+  .swipe-hint {
+    text-align: center; color: var(--muted); font-size: 12px;
+    margin-bottom: 8px; opacity: .7;
+  }
+}
+
+/* Image upload overlay */
+.img-upload-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .2s; cursor: pointer;
+}
+.card-img:hover .img-upload-overlay { opacity: 1; }
+.img-upload-overlay span { color: #fff; font-size: 13px; font-weight: 700; }
+
+/* Legacy compatibility for note-row */
+.note-row { display: none; }
+.note-row.visible { display: flex; }
+
+/* ══ BASKET ACTIONS ══ */
+.basket-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-action {
+  padding: 10px 20px; background: transparent;
+  border: 2px solid var(--border); color: var(--muted);
+  border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s;
+}
+.btn-action:hover { border-color: var(--orange); color: var(--orange-dark); background: var(--orange-pale); }
+.btn-action.danger:hover { border-color: var(--danger); color: var(--danger); background: #fff5f5; }
+.btn-export {
+  padding: 10px 20px; background: var(--success); color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.btn-export:hover { opacity: .88; }
+
+/* ══ SAVE BAR ══ */
+.save-bar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: var(--orange-dark); color: #fff;
+  padding: 11px 24px; border-radius: 40px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.22);
+  display: none; align-items: center; gap: 12px;
+  font-size: 14px; font-weight: 600; z-index: 200;
+}
+.save-bar.visible { display: flex; }
+.btn-save {
+  background: #fff; color: var(--orange-dark);
+  border: none; padding: 6px 18px; border-radius: 20px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+}
+
+/* ══ HISTORY ══ */
+.history-list { display: flex; flex-direction: column; gap: 12px; }
+.history-card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.history-card-header {
+  padding: 13px 16px; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap; cursor: pointer;
+}
+.history-card-header:hover { background: #fff5ee; }
+.order-info h3 { font-size: 15px; font-weight: 700; color: var(--orange-dark); margin-bottom: 3px; }
+.order-info p  { font-size: 13px; color: var(--muted); }
+.order-right   { display: flex; align-items: center; gap: 8px; }
+.expand-icon   { font-size: 12px; color: var(--muted); transition: transform .2s; }
+.history-card.expanded .expand-icon { transform: rotate(180deg); }
+.history-detail { display: none; padding: 0 16px 12px; border-top: 1px solid var(--border); }
+.history-card.expanded .history-detail { display: block; }
+.detail-item {
+  display: flex; justify-content: space-between; padding: 6px 0;
+  font-size: 13px; border-bottom: 1px dashed var(--border); gap: 6px;
+}
+.detail-item:last-child { border-bottom: none; }
+.detail-item .name  { flex: 1; }
+.detail-item .qty   { color: var(--muted); }
+.detail-item .price { font-weight: 600; color: var(--orange-dark); min-width: 50px; }
+.detail-item .st { font-size: 12px; min-width: 70px; text-align: center; }
+.st.ok      { color: var(--success); }
+.st.missing { color: var(--danger); }
+.st.damaged { color: var(--warn); }
+.st.pending { color: #aaa; }
+
+.status-pill { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.pill-open    { background: var(--orange-pale); color: var(--orange-dark); }
+.pill-done    { background: #e8f5e9; color: var(--success); }
+.pill-partial { background: #fff3e0; color: var(--warn); }
+
+/* ══ ADMIN ══ */
+.admin-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px; margin-bottom: 14px;
+}
+.admin-stat-card {
+  background: var(--white); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px; box-shadow: var(--shadow); text-align: center;
+}
+.admin-stat-card .label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.admin-stat-card .value { display: block; font-size: 26px; font-weight: 800; color: var(--orange-dark); }
+.admin-stat-card.danger .value { color: var(--danger); }
+.admin-stat-card.warn   .value { color: var(--warn); }
+
+.admin-filter-row {
+  display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center;
+}
+.admin-filter-row input, .admin-filter-row select {
+  padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; color: var(--text); background: var(--white); direction: rtl;
+}
+.admin-filter-row input { flex: 1; min-width: 160px; }
+
+.btn-icon {
+  padding: 8px 14px; background: var(--white); border: 1.5px solid var(--border);
+  border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--orange-dark);
+}
+.btn-icon:hover { background: var(--orange-pale); border-color: var(--orange); }
+
+.import-zone {
+  background: var(--white); border: 2px dashed var(--border); border-radius: 14px;
+  padding: 20px; margin-bottom: 16px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.import-zone:hover { border-color: var(--orange); background: var(--orange-pale); }
+.import-zone p { color: var(--muted); font-size: 14px; }
+.import-zone span { color: var(--orange-dark); font-weight: 700; }
+
+.admin-order-card .history-card-header { background: linear-gradient(90deg, #fff, #fff8f2); }
+.admin-order-meta { color: var(--muted); font-size: 12px; margin: 8px 0 4px; }
+
+/* ══ QUICK-ADD TILES ══ */
+.quick-add-wrap {
+  margin-bottom: 12px;
+}
+.quick-add-label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px;
+}
+.quick-add-tiles {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.quick-tile {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--white); border: 1.5px solid var(--border);
+  border-radius: 20px; padding: 6px 12px;
+  font-size: 13px; cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+  white-space: nowrap; user-select: none;
+}
+.quick-tile:active { transform: scale(.93); background: var(--orange-pale); border-color: var(--orange); }
+.quick-tile .tile-emoji { font-size: 15px; }
+
+/* ══ FILTER BAR ══ */
+.filter-bar {
+  background: var(--white); border-radius: 10px;
+  padding: 10px 14px; margin-bottom: 12px; box-shadow: var(--shadow);
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+.filter-bar input {
+  flex: 1; min-width: 140px; padding: 7px 11px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; direction: rtl; background: var(--cream); outline: none;
+}
+.filter-bar input:focus { border-color: var(--orange); background: #fff; }
+.filter-btn {
+  padding: 6px 13px; border-radius: 20px; font-size: 12px; font-weight: 700;
+  cursor: pointer; border: 1.5px solid var(--border); background: var(--white);
+  color: var(--muted); transition: all .15s; white-space: nowrap;
+}
+.filter-btn:hover   { border-color: var(--orange); color: var(--orange-dark); }
+.filter-btn.active  { background: var(--orange); border-color: var(--orange); color: #fff; }
+
+/* ══ NOTE FIELD ══ */
+.note-row {
+  display: none; padding: 6px 14px 10px; background: #fffdf8;
+  border-top: 1px dashed var(--border);
+}
+.note-row.visible { display: flex; gap: 8px; align-items: center; }
+.note-row input {
+  flex: 1; padding: 6px 10px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 13px; direction: rtl; background: #fff; outline: none; color: var(--text);
+}
+.note-row input:focus { border-color: var(--orange); }
+.note-row input::placeholder { color: #bbb; }
+.note-save-btn {
+  padding: 5px 12px; background: var(--orange); color: #fff;
+  border: none; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.note-badge {
+  font-size: 11px; color: var(--muted); background: #f5efe8;
+  padding: 1px 6px; border-radius: 10px; margin-right: 4px;
+}
+
+/* ══ WA BUTTON ══ */
+.btn-wa {
+  padding: 10px 18px; background: #25D366; color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+}
+.btn-wa:hover { background: #1da855; }
+
+/* ══ BACKUP CARD ══ */
+.backup-card {
+  background: var(--white); border: 1px solid var(--border); border-radius: 14px;
+  padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.backup-card h4 { font-size: 15px; color: var(--orange-dark); margin-bottom: 8px; }
+.backup-card p  { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+.backup-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ══ SUMMARY MODAL ══ */
+.summary-modal {
+  width: min(440px, calc(100vw - 32px)); border: 0; border-radius: 20px;
+  padding: 0; margin: auto; color: var(--text); box-shadow: 0 24px 70px rgba(45,25,10,.28);
+}
+.summary-modal::backdrop { background: rgba(40,24,12,.55); backdrop-filter: blur(5px); }
+.summary-content { padding: 28px; text-align: center; }
+.summary-content h2 { color: var(--orange-dark); margin-bottom: 6px; }
+.summary-content > p { color: var(--muted); margin-bottom: 20px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+.summary-stat { padding: 12px 6px; border-radius: 12px; background: var(--cream); border: 1px solid var(--border); }
+.summary-stat strong { display: block; font-size: 24px; color: var(--orange-dark); }
+.summary-stat span { font-size: 11px; color: var(--muted); }
+.summary-close { width: 100%; padding: 11px; border: 0; border-radius: 9px; background: var(--orange); color: #fff; font-weight: 700; cursor: pointer; }
+
+/* ══ EMPTY STATE ══ */
+.empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
+.empty-state .icon { font-size: 44px; margin-bottom: 10px; }
+.empty-state h3 { font-size: 17px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+
+/* ══ TOAST ══ */
+#toast {
+  position: fixed; top: 68px; left: 50%;
+  transform: translateX(-50%) translateY(-16px);
+  color: #fff; padding: 10px 24px; border-radius: 30px;
+  font-size: 14px; font-weight: 600;
+  opacity: 0; pointer-events: none;
+  transition: opacity .3s, transform .3s; z-index: 500;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══ RESPONSIVE ══ */
+@media (max-width: 560px) {
+  .start-card { padding: 26px 18px 30px; }
+  header { padding: 0 12px; }
+  nav { padding: 0 8px; }
+  .nav-tab { padding: 11px 12px; }
+  main { margin: 16px auto; padding: 0 10px; }
+  .add-row { flex-direction: column; }
+  .add-row input { width: 100%; }
+  .item-row { flex-wrap: wrap; }
+  .item-name { flex-basis: 100%; }
+  .status-btns { width: 100%; justify-content: flex-start; }
+  .save-bar { width: calc(100% - 20px); justify-content: space-between; padding: 9px 14px; }
+  .admin-stats { grid-template-columns: repeat(2, 1fr); }
+  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .filter-bar { gap: 6px; }
+  .basket-actions { gap: 6px; }
+  .btn-wa { font-size: 13px; padding: 9px 12px; }
+  .backup-btns { flex-direction: column; }
+  #basket-items { grid-template-columns: 1fr; }
+  .card-img { height: 100px; }
+  .card-btn { padding: 12px 4px; }
+  .card-btn .btn-icon { font-size: 22px; }
+}
+
+/* ══ SCAN WIZARD ══ */
+#scan-overlay {
+  position: fixed; inset: 0; background: var(--cream); z-index: 900;
+  display: none; flex-direction: column; overflow: hidden;
+}
+#scan-overlay.active { display: flex; }
+.scan-header {
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  color: #fff; padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.scan-header-title { font-size: 14px; font-weight: 700; }
+.scan-header-btn {
+  background: rgba(255,255,255,.2); border: none; color: #fff;
+  padding: 5px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
+  font-weight: 700;
+}
+.scan-header-btn:hover { background: rgba(255,255,255,.35); }
+.scan-prog-bar { height: 6px; background: rgba(255,255,255,.25); flex-shrink: 0; }
+.scan-prog-fill { height: 100%; background: #fff; transition: width .4s ease; }
+
+.scan-body {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 24px 20px; text-align: center;
+}
+.scan-dots { display: flex; gap: 5px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; max-width: 300px; }
+.scan-dot { width: 9px; height: 9px; border-radius: 50%; background: #ddd; transition: all .2s; }
+.scan-dot.ok      { background: var(--success); }
+.scan-dot.missing { background: var(--danger); }
+.scan-dot.damaged { background: var(--warn); }
+.scan-dot.current { background: var(--orange); transform: scale(1.5); }
+.scan-dot.skipped { background: #ccc; }
+
+.scan-product-name {
+  font-size: 26px; font-weight: 800; color: var(--text);
+  margin-bottom: 6px; line-height: 1.25; max-width: 340px;
+}
+.scan-product-meta { font-size: 13px; color: var(--muted); margin-bottom: 28px; min-height: 18px; }
+
+.scan-btns { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 340px; }
+.scan-btn {
+  padding: 18px 20px; border-radius: 16px; border: 3px solid transparent;
+  font-size: 17px; font-weight: 800; cursor: pointer;
+  display: flex; align-items: center; gap: 14px;
+  text-align: right; transition: transform .1s, box-shadow .15s, border-color .15s;
+  box-shadow: 0 3px 12px rgba(0,0,0,.08);
+}
+.scan-btn:active { transform: scale(.96); }
+.scan-btn .sico { font-size: 30px; flex-shrink: 0; }
+.scan-btn .stxt { flex: 1; }
+.scan-btn .sttl { display: block; }
+.scan-btn .ssub { display: block; font-size: 12px; font-weight: 400; opacity: .75; margin-top: 2px; }
+.sbtn-ok      { background: #f1faf2; color: var(--success); }
+.sbtn-ok.sel, .sbtn-ok:hover  { background: #c8e6c9; border-color: var(--success); box-shadow: 0 4px 18px rgba(46,125,50,.25); }
+.sbtn-miss    { background: #fff5f5; color: var(--danger); }
+.sbtn-miss.sel, .sbtn-miss:hover { background: #ffcdd2; border-color: var(--danger); box-shadow: 0 4px 18px rgba(198,40,40,.2); }
+.sbtn-dmg     { background: #fffbf0; color: var(--warn); }
+.sbtn-dmg.sel, .sbtn-dmg:hover  { background: #ffe0b2; border-color: var(--warn); box-shadow: 0 4px 18px rgba(230,81,0,.2); }
+
+/* Damaged expander */
+.scan-dmg-extra {
+  width: 100%; max-width: 340px; display: none;
+  background: #fff8e1; border-radius: 14px; padding: 14px;
+  text-align: right; margin-top: 4px;
+}
+.scan-dmg-extra.open { display: block; }
+.scan-photo-preview {
+  width: 100%; max-height: 130px; object-fit: cover; border-radius: 10px;
+  margin-bottom: 8px; display: none;
+}
+.scan-photo-preview.show { display: block; }
+.scan-photo-btn {
+  width: 100%; padding: 9px 14px; border-radius: 10px;
+  background: #fff; border: 1.5px dashed #ffcc80; cursor: pointer;
+  font-size: 13px; font-weight: 700; color: var(--warn); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px; justify-content: center;
+}
+.scan-note-inp {
+  width: 100%; border: 1.5px solid #ffe0b2; border-radius: 10px;
+  padding: 9px 12px; font-size: 14px; direction: rtl; resize: none;
+  background: #fffde7; outline: none; color: var(--text); min-height: 60px;
+  font-family: inherit;
+}
+.scan-note-inp:focus { border-color: var(--warn); }
+
+/* Footer nav */
+.scan-footer {
+  flex-shrink: 0; padding: 14px 18px 18px;
+  background: var(--white); border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.scan-nav-row { display: flex; gap: 10px; }
+.snav-btn {
+  flex: 1; padding: 13px; border-radius: 12px; font-size: 15px;
+  font-weight: 800; border: none; cursor: pointer; transition: all .2s;
+}
+.snav-prev { background: var(--cream); border: 2px solid var(--border); color: var(--muted); }
+.snav-prev:hover { border-color: var(--orange); color: var(--orange-dark); }
+.snav-next   { background: var(--orange); color: #fff; }
+.snav-finish { background: var(--success); color: #fff; }
+.scan-all-ok-btn {
+  width: 100%; padding: 11px; border-radius: 12px; cursor: pointer; font-size: 13px;
+  font-weight: 700; background: transparent; border: 2px solid #c8e6c9; color: var(--success);
+  transition: all .2s;
+}
+.scan-all-ok-btn:hover { background: #e8f5e9; }
+
+/* Start scan button in basket */
+.btn-start-scan {
+  width: 100%; padding: 15px; border-radius: 14px; border: none;
+  background: linear-gradient(90deg, var(--orange-dark), var(--orange));
+  color: #fff; font-size: 16px; font-weight: 800; cursor: pointer;
+  box-shadow: 0 4px 18px rgba(232,119,34,.35); margin-bottom: 16px;
+  transition: opacity .2s;
+}
+.btn-start-scan:hover { opacity: .9; }
+
+/* ══ IMPORT PANEL ══ */
+.import-panel {
+  background: var(--white); border-radius: 14px;
+  box-shadow: var(--shadow); margin-bottom: 18px; overflow: hidden;
+  border: 1.5px solid var(--border);
+}
+.import-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; cursor: pointer;
+  font-size: 15px; font-weight: 700; color: var(--orange-dark);
+  transition: background .15s; user-select: none;
+}
+.import-toggle:hover { background: var(--orange-pale); }
+.import-toggle .chevron { font-size: 12px; color: var(--muted); transition: transform .2s; }
+.import-toggle.open .chevron { transform: rotate(180deg); }
+.import-body { display: none; border-top: 1px solid var(--border); }
+.import-body.open { display: block; }
+
+/* Tabs */
+.imp-tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.imp-tab {
+  flex: 1; padding: 10px 8px; text-align: center; font-size: 13px; font-weight: 700;
+  color: var(--muted); cursor: pointer; white-space: nowrap; min-width: 72px;
+  border-bottom: 3px solid transparent; margin-bottom: -1px; transition: all .15s;
+}
+.imp-tab:hover  { color: var(--orange-dark); }
+.imp-tab.active { color: var(--orange-dark); border-bottom-color: var(--orange); }
+.imp-pane { display: none; padding: 16px 18px; }
+.imp-pane.active { display: block; }
+
+/* File drop */
+.file-drop {
+  border: 2px dashed var(--border); border-radius: 12px;
+  padding: 28px 16px; text-align: center; cursor: pointer; transition: all .2s;
+}
+.file-drop:hover, .file-drop.drag-over { border-color: var(--orange); background: var(--orange-pale); }
+.file-drop .drop-icon { font-size: 34px; margin-bottom: 8px; }
+.file-drop p { color: var(--muted); font-size: 14px; margin-bottom: 4px; }
+.file-drop .formats { font-size: 12px; color: #bbb; }
+
+/* Text pane */
+.imp-textarea {
+  width: 100%; min-height: 120px; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 14px; direction: rtl; resize: vertical; outline: none;
+  font-family: inherit; color: var(--text); background: var(--cream);
+  margin-bottom: 10px; line-height: 1.7;
+}
+.imp-textarea:focus { border-color: var(--orange); background: #fff; }
+.imp-example {
+  background: var(--cream); border-radius: 8px; padding: 8px 12px;
+  font-size: 12px; color: var(--muted); margin-bottom: 10px;
+  border-right: 3px solid var(--border); white-space: pre-line; line-height: 1.7;
+}
+.imp-example strong { color: var(--orange-dark); display: block; margin-bottom: 3px; }
+
+/* Code pane */
+.code-input-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.code-input-row input {
+  flex: 1; padding: 12px 14px; font-size: 15px; font-family: monospace;
+  border: 2px solid var(--border); border-radius: 10px; outline: none;
+  direction: ltr; color: var(--text); background: var(--cream);
+}
+.code-input-row input:focus { border-color: var(--orange); background: #fff; }
+.code-info {
+  background: #e8f5e9; border-radius: 8px; padding: 10px 14px;
+  font-size: 13px; color: #2e7d32; line-height: 1.6; margin-bottom: 4px;
+}
+.imp-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+
+/* Onboarding steps on start screen */
+.steps-row {
+  display: flex; gap: 0; margin: 16px 0 20px; justify-content: center;
+}
+.step-item {
+  display: flex; flex-direction: column; align-items: center; flex: 1;
+  position: relative; text-align: center;
+}
+.step-item:not(:last-child)::after {
+  content: ''; position: absolute; top: 20px; left: 50%;
+  width: 100%; height: 2px; background: var(--border); z-index: 0;
+}
+.step-num {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--orange); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 16px; z-index: 1; position: relative;
+}
+.step-label { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.3; }
+</style>
+</head>
+<body>
+
+<!-- ══ START SCREEN ══ -->
+<div id="screen-start" class="screen active">
+  <div class="start-card">
+    <div class="start-logo">
+      <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png" alt="משנת יוסף" />
+    </div>
+    <h2>ניהול סל קנייה</h2>
+    <p>סמן מה הגיע, מה חסר, מה פגום — ושלח סיכום</p>
+
+    <!-- Steps -->
+    <div class="steps-row">
+      <div class="step-item"><div class="step-num">1</div><div class="step-label">הזן<br>שמך</div></div>
+      <div class="step-item"><div class="step-num">2</div><div class="step-label">טען<br>רשימה</div></div>
+      <div class="step-item"><div class="step-num">3</div><div class="step-label">סמן<br>מוצרים</div></div>
+      <div class="step-item"><div class="step-num" style="background:var(--success)">4</div><div class="step-label">שלח<br>סיכום</div></div>
+    </div>
+
+    <div class="form-group">
+      <label>שמך המלא</label>
+      <input type="text" id="start-name" placeholder="ישראל ישראלי" autocomplete="name" />
+    </div>
+    <div class="form-group">
+      <label>מספר לקוח (לא חובה)</label>
+      <input type="text" id="start-customer-id" placeholder="מזהה / טלפון" autocomplete="off" />
+    </div>
+    <div id="start-err" class="err-msg"></div>
+    <button class="btn-primary" onclick="startCustomer()">כניסה לסל שלי ←</button>
+    <div class="or-divider">או</div>
+    <button class="btn-secondary" onclick="showAdminLogin()">כניסת מנהל 👑</button>
+  </div>
+</div>
+
+<!-- ══ ADMIN LOGIN ══ -->
+<div id="screen-admin-login" class="screen">
+  <div class="start-card">
+    <div class="start-logo">
+      <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png" alt="משנת יוסף" />
+    </div>
+    <div style="text-align:center; margin-bottom:16px;">
+      <span class="admin-badge">👑 כניסת מנהל</span>
+    </div>
+    <div class="form-group">
+      <label>קוד מנהל</label>
+      <input type="password" id="admin-pass" placeholder="••••••" onkeydown="if(event.key==='Enter') doAdminLogin()" />
+    </div>
+    <div id="admin-err" class="err-msg"></div>
+    <button class="btn-primary" style="background:linear-gradient(90deg,#6a0000,#c62828)" onclick="doAdminLogin()">כניסה כמנהל</button>
+    <button class="btn-secondary" onclick="backToStart()" style="margin-top:8px">חזרה</button>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="screen-app" class="screen">
+  <header>
+    <div class="header-logo">
+      <img src="https://sherut-il.com/wp-content/uploads/2023/11/%D7%9E%D7%A9%D7%A0%D7%AA-%D7%99%D7%95%D7%A1%D7%A3-%D7%A9%D7%99%D7%A8%D7%95%D7%AA-%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA-%D7%9C%D7%95%D7%92%D7%95-1024x422.png" alt="משנת יוסף" />
+    </div>
+    <div class="header-info">
+      <span class="offline-badge">✓ Offline</span>
+      <div class="avatar" id="hdr-avatar">?</div>
+      <span id="hdr-name"></span>
+      <span class="role-pill" id="hdr-role">לקוח</span>
+      <button class="btn-logout" onclick="doLogout()">יציאה</button>
+      <a href="weekly-report.html" style="color:#fff;font-size:12px;opacity:.85;text-decoration:none;white-space:nowrap">📋 דוח שבועי</a>
+    </div>
+  </header>
+
+  <nav>
+    <div class="nav-tab active" data-tab="basket" onclick="showTab('basket',this)">🧺 הסל שלי</div>
+    <div class="nav-tab" data-tab="history" onclick="showTab('history',this)">📋 היסטוריה</div>
+    <div class="nav-tab" data-tab="updates" onclick="showTab('updates',this)">📢 עדכונים</div>
+    <div class="nav-tab" id="nav-admin" data-tab="admin" onclick="showTab('admin',this)" style="display:none">👑 ניהול</div>
+  </nav>
+
+  <main>
+
+    <!-- ══ BASKET ══ -->
+    <div class="page active" id="page-basket">
+      <div class="page-title">
+        <h2>🧺 הסל שלי</h2>
+        <p>סמן לכל מוצר: הגיע / לא הגיע / פגום</p>
+      </div>
+
+      <!-- ══ IMPORT PANEL ══ -->
+      <div class="import-panel" id="import-panel">
+        <div class="import-toggle" id="import-toggle" onclick="toggleImport()">
+          <span>📂 טען רשימת הזמנה</span>
+          <span class="chevron">▼</span>
+        </div>
+        <div class="import-body" id="import-body">
+          <div class="imp-tabs">
+            <div class="imp-tab active" onclick="switchImpTab(this,'file')">📁 קובץ</div>
+            <div class="imp-tab" onclick="switchImpTab(this,'text')">📝 טקסט</div>
+            <div class="imp-tab" onclick="switchImpTab(this,'code')">🔑 קוד קנייה</div>
+          </div>
+
+          <!-- FILE PANE -->
+          <div class="imp-pane active" id="imp-pane-file">
+            <div class="file-drop" id="file-drop"
+              onclick="$('imp-file-input').click()"
+              ondragover="event.preventDefault();this.classList.add('drag-over')"
+              ondragleave="this.classList.remove('drag-over')"
+              ondrop="onFileDrop(event)">
+              <input type="file" id="imp-file-input" accept=".csv,.json,.txt,.xlsx"
+                style="display:none" onchange="importCustomerFile(this)" />
+              <div class="drop-icon">📂</div>
+              <p><strong>לחץ להעלאת קובץ</strong> או גרור לכאן</p>
+              <p class="formats">CSV · JSON · TXT</p>
+            </div>
+            <p style="font-size:12px;color:var(--muted);margin-top:10px;text-align:center">
+              קובץ CSV: עמודות <code>שם, כמות, מחיר</code> (ראש עמודה בשורה ראשונה)
+            </p>
+          </div>
+
+          <!-- TEXT PANE -->
+          <div class="imp-pane" id="imp-pane-text">
+            <div class="imp-example">
+              <strong>דוגמאות לפורמטים נתמכים:</strong>חלב x2
+לחם פרוס
+ביצים 12 יח׳
+גבינה לבנה, קוטג׳ 5%, שמנת חמוצה
+עוף שלם - 2 ק"ג</div>
+            <textarea class="imp-textarea" id="imp-text"
+              placeholder="הדבק כאן את הרשימה שקיבלת...&#10;&#10;חלב x2&#10;לחם פרוס&#10;ביצים 12 יח׳"></textarea>
+            <div class="imp-btns">
+              <button type="button" class="btn-primary" style="width:auto;padding:10px 24px" onclick="importFromText()">טען רשימה ←</button>
+              <button type="button" class="btn-secondary" style="width:auto;margin:0;padding:10px 14px" onclick="$('imp-text').value=''">נקה</button>
+            </div>
+          </div>
+
+          <!-- CODE PANE -->
+          <div class="imp-pane" id="imp-pane-code">
+            <div class="code-info">
+              🔑 קיבלת קוד קנייה ממשנת יוסף? הזן אותו כאן כדי לטעון את הרשימה שלך באופן מיידי — עובד גם ללא אינטרנט!
+            </div>
+            <div class="code-input-row">
+              <input type="text" id="imp-code" placeholder="הדבק את קוד הקנייה כאן..."
+                oninput="this.value=this.value.replace(/\s/g,'')" />
+              <button type="button" class="btn-primary" style="width:auto;padding:10px 18px;white-space:nowrap" onclick="importFromCode()">טען</button>
+            </div>
+            <p style="font-size:12px;color:var(--muted)">הקוד נוצר על ידי המנהל ונשלח אליך ב-WhatsApp</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADD FORM -->
+      <div class="add-form">
+        <h3>➕ הוסף מוצר</h3>
+
+        <!-- QUICK-ADD TILES -->
+        <div class="quick-add-wrap" id="quick-add-wrap">
+          <div class="quick-add-label">הוספה מהירה</div>
+          <div class="quick-add-tiles" id="quick-add-tiles"></div>
+        </div>
+
+        <form class="add-row" onsubmit="addItem(event)">
+          <input class="inp-name"  id="new-name"  type="text" placeholder="שם מוצר *" list="prod-suggestions" autocomplete="off" oninput="filterQuickTiles(this.value)" />
+          <datalist id="prod-suggestions"></datalist>
+          <input class="inp-qty"   id="new-qty"   type="text" placeholder="כמות" />
+          <input class="inp-price" id="new-price" type="text" placeholder="מחיר ₪" />
+          <button type="submit" class="btn-add">הוסף</button>
+        </form>
+      </div>
+
+      <!-- PROGRESS -->
+      <div class="progress-card">
+        <div class="progress-header">
+          <h3>התקדמות</h3>
+          <span id="prog-text">0 / 0</span>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" id="prog-fill" style="width:0%"></div>
+        </div>
+        <div class="progress-stats">
+          <div class="stat"><div class="stat-dot dot-ok"></div><span id="stat-ok">0 הגיעו</span></div>
+          <div class="stat"><div class="stat-dot dot-missing"></div><span id="stat-missing">0 חסרים</span></div>
+          <div class="stat"><div class="stat-dot dot-damaged"></div><span id="stat-damaged">0 פגומים</span></div>
+          <div class="stat"><div class="stat-dot dot-pending"></div><span id="stat-pending">0 ממתינים</span></div>
+        </div>
+      </div>
+
+      <!-- FILTER BAR -->
+      <div class="filter-bar">
+        <input type="text" id="basket-search" placeholder="🔍 חפש מוצר..." oninput="filterBasket()" />
+        <button class="filter-btn active" data-filter="" onclick="setFilter(this,'')">הכל</button>
+        <button class="filter-btn" data-filter="ok"      onclick="setFilter(this,'ok')">✅ הגיעו</button>
+        <button class="filter-btn" data-filter="missing" onclick="setFilter(this,'missing')">❌ חסרים</button>
+        <button class="filter-btn" data-filter="damaged" onclick="setFilter(this,'damaged')">⚠️ פגומים</button>
+        <button class="filter-btn" data-filter="pending" onclick="setFilter(this,'pending')">⏳ ממתינים</button>
+      </div>
+
+      <!-- SUMMARY STRIP -->
+      <div id="basket-summary" style="direction:rtl; display:none; gap:6px; flex-wrap:wrap; margin-bottom:10px; font-size:13px; font-weight:700;">
+        <span id="sum-ok"    style="background:#e8f5e9;color:#2e7d32;padding:4px 12px;border-radius:20px;">✅ 0</span>
+        <span id="sum-miss"  style="background:#fdecea;color:#b71c1c;padding:4px 12px;border-radius:20px;">❌ 0</span>
+        <span id="sum-dmg"   style="background:#fff8e1;color:#e65100;padding:4px 12px;border-radius:20px;">⚠️ 0</span>
+        <span id="sum-pend"  style="background:#f5f5f5;color:#555;  padding:4px 12px;border-radius:20px;">⏳ 0</span>
+        <button onclick="markAllOk()" style="margin-right:auto;background:#2e7d32;color:#fff;border:none;border-radius:20px;padding:4px 14px;cursor:pointer;font-size:12px;font-weight:700;">
+          ✅ כל המוצרים התקבלו
+        </button>
+      </div>
+
+      <!-- START SCAN -->
+      <button class="btn-start-scan" id="btn-start-scan" onclick="openScanMode()" style="display:none">
+        ▶️ התחל סיקור מוצרים
+      </button>
+
+      <!-- ITEMS LIST -->
+      <div id="basket-items">
+        <div class="empty-state">
+          <div class="icon">🛒</div>
+          <h3>הסל ריק</h3>
+          <p>הוסף מוצרים באמצעות הטופס למעלה</p>
+        </div>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="basket-actions" style="margin-top:14px">
+        <button class="btn-action danger" onclick="resetStatuses()">איפוס סימונים</button>
+        <button class="btn-action" onclick="closeBasket()">סגור סל ↗</button>
+        <button class="btn-export" onclick="exportCSV()">📥 CSV</button>
+        <button class="btn-wa" onclick="shareWhatsApp()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          שלח ב-WhatsApp
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ HISTORY ══ -->
+    <div class="page" id="page-history">
+      <div class="page-title">
+        <h2>📋 היסטוריית סלים</h2>
+        <p>כל הסלים הקודמים שלך</p>
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="empty-state"><div class="icon">📋</div><h3>אין היסטוריה עדיין</h3></div>
+      </div>
+    </div>
+
+    <!-- ══ UPDATES (Twitter feed) ══ -->
+    <div class="page" id="page-updates">
+      <div class="page-title">
+        <h2>📢 עדכונים ממשנת יוסף</h2>
+        <p>מוצרים ועדכונים שפורסמו לאחרונה</p>
+      </div>
+      <div style="max-width:550px;margin:0 auto">
+        <a class="twitter-timeline"
+           href="https://twitter.com/mishnatyosef"
+           data-lang="he"
+           data-height="600"
+           data-theme="light"
+           data-chrome="noheader nofooter noborders">טוען עדכונים...</a>
+        <div id="twitter-offline-msg" style="display:none;text-align:center;padding:32px;color:var(--muted)">
+          <div style="font-size:36px;margin-bottom:10px">📵</div>
+          <p>לצפייה בעדכונים נדרש חיבור לאינטרנט</p>
+          <a href="https://x.com/mishnatyosef" target="_blank"
+             style="color:var(--orange-dark);font-weight:700;font-size:14px">
+            פתח ב-X ←
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ADMIN ══ -->
+    <div class="page" id="page-admin">
+      <div class="page-title-row">
+        <div>
+          <h2>👑 ניהול מלאי</h2>
+          <p>סקירת כל הלקוחות, סלים וחוסרים</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-icon" onclick="loadAdminDashboard()">🔄 רענון</button>
+          <button class="btn-icon" onclick="exportAdminCSV()">📥 ייצוא CSV</button>
+          <button class="btn-icon" style="color:var(--orange-dark)" onclick="showCodeGenerator()">🔑 יצור קוד לקוח</button>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div class="admin-stats">
+        <div class="admin-stat-card"><span class="label">לקוחות</span><strong class="value" id="adm-customers">0</strong></div>
+        <div class="admin-stat-card"><span class="label">סלים פתוחים</span><strong class="value" id="adm-open">0</strong></div>
+        <div class="admin-stat-card"><span class="label">סלים סגורים</span><strong class="value" id="adm-closed">0</strong></div>
+        <div class="admin-stat-card danger"><span class="label">חוסרים</span><strong class="value" id="adm-missing">0</strong></div>
+        <div class="admin-stat-card warn"><span class="label">פגומים</span><strong class="value" id="adm-damaged">0</strong></div>
+        <div class="admin-stat-card"><span class="label">סה"כ מוצרים</span><strong class="value" id="adm-total">0</strong></div>
+      </div>
+
+      <!-- IMPORT -->
+      <div class="import-zone" onclick="$('file-import').click()">
+        <input type="file" id="file-import" accept=".json,.csv" style="display:none" onchange="importFile(this)" />
+        <p>📂 <span>ייבוא מוצרים מ-JSON / CSV</span></p>
+        <p style="font-size:12px;margin-top:4px">לחץ או גרור קובץ</p>
+      </div>
+
+      <!-- FILTER -->
+      <div class="admin-filter-row">
+        <input type="text" id="adm-search" placeholder="חיפוש לפי שם לקוח / מוצר..." oninput="filterAdminList()" />
+        <select id="adm-filter-status" onchange="filterAdminList()">
+          <option value="">כל הסלים</option>
+          <option value="open">פתוחים</option>
+          <option value="closed">סגורים</option>
+        </select>
+      </div>
+
+      <!-- ORDERS LIST -->
+      <!-- BACKUP -->
+      <div class="backup-card">
+        <h4>💾 גיבוי ושחזור נתונים</h4>
+        <p>ייצא את כל הנתונים לקובץ JSON לגיבוי. בלי גיבוי — ניקוי הדפדפן ימחק הכל.</p>
+        <div class="backup-btns">
+          <button class="btn-icon" onclick="backupAll()">📥 ייצא גיבוי JSON</button>
+          <label class="btn-icon" style="cursor:pointer">
+            📤 שחזר מגיבוי
+            <input type="file" accept=".json" style="display:none" onchange="restoreBackup(this)" />
+          </label>
+          <button class="btn-icon" style="color:var(--danger)" onclick="clearAllData()">🗑 מחק הכל</button>
+        </div>
+      </div>
+
+      <div class="history-list" id="admin-orders-list">
+        <div class="empty-state"><div class="icon">📋</div><h3>אין נתונים</h3></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══ SCAN WIZARD OVERLAY ══ -->
+<div id="scan-overlay">
+  <div class="scan-header">
+    <button class="scan-header-btn" onclick="closeScanMode()">✕ יציאה</button>
+    <span class="scan-header-title" id="scan-counter">מוצר 1 מתוך 1</span>
+    <button class="scan-header-btn" onclick="scanSkip()">דלג ›</button>
+  </div>
+  <div class="scan-prog-bar"><div class="scan-prog-fill" id="scan-prog-fill"></div></div>
+
+  <div class="scan-body">
+    <div class="scan-dots" id="scan-dots"></div>
+    <div class="scan-product-name" id="scan-pname">שם מוצר</div>
+    <div class="scan-product-meta" id="scan-pmeta"></div>
+
+    <div class="scan-btns">
+      <button class="scan-btn sbtn-ok" id="sbtn-ok" onclick="scanSetStatus('ok')">
+        <span class="sico">✅</span>
+        <span class="stxt"><span class="sttl">הגיע</span><span class="ssub">המוצר הגיע תקין, אין בעיה</span></span>
+      </button>
+      <button class="scan-btn sbtn-miss" id="sbtn-miss" onclick="scanSetStatus('missing')">
+        <span class="sico">❌</span>
+        <span class="stxt"><span class="sttl">חסר</span><span class="ssub">המוצר לא הגיע בכלל</span></span>
+      </button>
+      <button class="scan-btn sbtn-dmg" id="sbtn-dmg" onclick="scanSetStatus('damaged')">
+        <span class="sico">⚠️</span>
+        <span class="stxt"><span class="sttl">פגום / שבור</span><span class="ssub">הגיע אבל יש בעיה — תאר ו/או צלם</span></span>
+      </button>
+    </div>
+
+    <!-- Damaged expander -->
+    <div class="scan-dmg-extra" id="scan-dmg-extra">
+      <img id="scan-photo-prev" class="scan-photo-preview" alt="" />
+      <button class="scan-photo-btn" onclick="$('scan-photo-inp').click()">
+        📷 הוסף תמונה (לא חובה)
+      </button>
+      <input type="file" id="scan-photo-inp" accept="image/*" capture="environment"
+        style="display:none" onchange="scanLoadPhoto(this)" />
+      <textarea class="scan-note-inp" id="scan-note-inp"
+        placeholder="תאר את הבעיה (לא חובה)&#10;למשל: אריזה קרועה, מוצר שבור, חצי כמות..."></textarea>
+    </div>
+  </div>
+
+  <div class="scan-footer">
+    <div class="scan-nav-row">
+      <button class="snav-btn snav-prev" onclick="scanPrev()">› חזרה</button>
+      <button class="snav-btn snav-next" id="scan-next-btn" onclick="scanNext()">הבא ‹</button>
+    </div>
+    <button class="scan-all-ok-btn" onclick="scanAllOk()">✅ כל המוצרים שנותרו הגיעו תקין</button>
+  </div>
+</div>
+
+<!-- SAVE BAR -->
+<div class="save-bar" id="save-bar">
+  <span>⚠️ שינויים לא שמורים</span>
+  <button class="btn-save" onclick="saveBasket()">שמור</button>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- SUMMARY MODAL -->
+<dialog class="summary-modal" id="summary-modal" onclick="if(event.target===this)this.close()">
+  <div class="summary-content">
+    <h2>✅ הסל נשמר</h2>
+    <p>סיכום הסל הנוכחי</p>
+    <div class="summary-grid">
+      <div class="summary-stat"><strong id="sum-ok">0</strong><span>הגיעו</span></div>
+      <div class="summary-stat"><strong id="sum-missing">0</strong><span>חסרים</span></div>
+      <div class="summary-stat"><strong id="sum-damaged">0</strong><span>פגומים</span></div>
+      <div class="summary-stat"><strong id="sum-pending">0</strong><span>ממתינים</span></div>
+    </div>
+    <button class="summary-close" onclick="$('summary-modal').close()">הבנתי, תודה</button>
+  </div>
+</dialog>
+
+<script>
+// ══════════════════════════════════════════
+//  CONSTANTS & STORAGE
+// ══════════════════════════════════════════
+const ADMIN_CODE = 'mishnat2026';  // ← שנה את קוד המנהל כאן
+const LS = {
+  SESSION: 'mj-session',
+  BASKETS: 'mj-baskets',
+  PRODUCTS: 'mj-products'
+};
+
+const $ = id => document.getElementById(id);
+
+function lsGet(key) {
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+}
+function lsSet(key, val) {
+  localStorage.setItem(key, JSON.stringify(val));
+}
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let session = null;          // { name, customerId, isAdmin }
+let currentBasketId = null;
+let basketItems = [];
+let dirty = false;
+let adminBaskets = [];       // all baskets flat
+let adminBasketsFiltered = [];
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+function toast(msg, color = '#333') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.style.background = color;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ══════════════════════════════════════════
+//  SCREENS
+// ══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+function showAdminLogin() { showScreen('screen-admin-login'); setTimeout(() => $('admin-pass').focus(), 100); }
+function backToStart()    { showScreen('screen-start'); $('admin-err').textContent = ''; }
+
+// ══════════════════════════════════════════
+//  START / LOGIN
+// ══════════════════════════════════════════
+function startCustomer() {
+  const name = $('start-name').value.trim();
+  const customerId = $('start-customer-id').value.trim();
+  if (!name) { $('start-err').textContent = 'יש להזין שם'; return; }
+  $('start-err').textContent = '';
+  session = { name, customerId, isAdmin: false };
+  lsSet(LS.SESSION, session);
+  enterApp();
+}
+
+function doAdminLogin() {
+  const pass = $('admin-pass').value;
+  if (pass !== ADMIN_CODE) { $('admin-err').textContent = 'קוד שגוי'; return; }
+  $('admin-err').textContent = '';
+  $('admin-pass').value = '';
+  session = { name: 'מנהל', customerId: 'admin', isAdmin: true };
+  lsSet(LS.SESSION, session);
+  enterApp();
+}
+
+function doLogout() {
+  if (dirty && !confirm('יש שינויים שלא נשמרו. לצאת בכל זאת?')) return;
+  session = null;
+  lsSet(LS.SESSION, null);
+  currentBasketId = null;
+  basketItems = [];
+  dirty = false;
+  hideSaveBar();
+  showScreen('screen-start');
+  $('start-name').value = '';
+  $('start-customer-id').value = '';
+}
+
+// ══════════════════════════════════════════
+//  ENTER APP
+// ══════════════════════════════════════════
+function enterApp() {
+  showScreen('screen-app');
+  $('hdr-avatar').textContent = session.name[0].toUpperCase();
+  $('hdr-name').textContent = session.name;
+  $('hdr-role').textContent = session.isAdmin ? 'מנהל' : 'לקוח';
+  $('hdr-role').className = 'role-pill' + (session.isAdmin ? ' admin' : '');
+  $('nav-admin').style.display = session.isAdmin ? 'block' : 'none';
+
+  showTab(session.isAdmin ? 'admin' : 'basket');
+  if (!session.isAdmin) {
+    loadBasket();
+    loadHistory();
+  } else {
+    loadAdminDashboard();
+  }
+}
+
+// ══════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════
+function showTab(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  $('page-' + name).classList.add('active');
+  const tab = el || document.querySelector(`[data-tab="${name}"]`);
+  if (tab) tab.classList.add('active');
+  if (name === 'admin') loadAdminDashboard();
+  if (name === 'history') loadHistory();
+}
+
+// ══════════════════════════════════════════
+//  BASKET — LOAD
+// ══════════════════════════════════════════
+function allBaskets() {
+  return lsGet(LS.BASKETS) || [];
+}
+function saveAllBaskets(baskets) {
+  lsSet(LS.BASKETS, baskets);
+}
+
+function loadBasket() {
+  const baskets = allBaskets();
+  const key = session.name + (session.customerId ? '_' + session.customerId : '');
+  let basket = baskets.find(b => b.ownerKey === key && b.status === 'open');
+  if (!basket) {
+    basket = {
+      id: crypto.randomUUID(),
+      ownerKey: key,
+      ownerName: session.name,
+      customerId: session.customerId,
+      status: 'open',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      items: []
+    };
+    baskets.unshift(basket);
+    saveAllBaskets(baskets);
+  }
+  currentBasketId = basket.id;
+  basketItems = basket.items || [];
+  openNotes.clear();
+  renderBasket();
+  updateProgress();
+  renderCatalogOptions();
+  _updateScanBtn();
+}
+
+// ══════════════════════════════════════════
+//  BASKET — RENDER
+// ══════════════════════════════════════════
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function statusLabel(status) {
+  if (status === 'ok')      return '✅ הגיע';
+  if (status === 'missing') return '❌ לא הגיע';
+  if (status === 'damaged') return '⚠️ פגום';
+  return '⏳ ממתין';
+}
+
+function renderBasket() {
+  const list = $('basket-items');
+  if (!basketItems.length) {
+    list.innerHTML = `<div class="empty-state"><div class="icon">🛒</div><h3>הסל ריק</h3><p>הוסף מוצרים באמצעות הטופס למעלה</p></div>`;
+    return;
+  }
+  list.innerHTML = basketItems.map((item, i) => `
+    <div class="item-row ${item.status || ''}">
+      <div class="item-name">${escHtml(item.name)}</div>
+      <div class="item-meta">
+        ${item.qty   ? `<span class="item-qty">${escHtml(item.qty)}</span>` : ''}
+        ${item.price ? `<span class="item-price">₪${escHtml(item.price)}</span>` : ''}
+      </div>
+      <div class="status-btns">
+        <button class="status-btn ok-btn      ${item.status==='ok'      ?'active':''}" onclick="setStatus(${i},'ok')">✅ הגיע</button>
+        <button class="status-btn missing-btn ${item.status==='missing' ?'active':''}" onclick="setStatus(${i},'missing')">❌ לא הגיע</button>
+        <button class="status-btn damaged-btn ${item.status==='damaged' ?'active':''}" onclick="setStatus(${i},'damaged')">⚠️ פגום</button>
+        <button class="status-btn del-btn" onclick="deleteItem(${i})" title="מחק">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+//  BASKET — ACTIONS
+// ══════════════════════════════════════════
+function setStatus(i, status) {
+  const prev = basketItems[i].status;
+  basketItems[i].status = prev === status ? '' : status;
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+  persistBasket();
+  updateHeaderBadge();
+  if (navigator.vibrate) navigator.vibrate(30);
+  // Pop animation on newly active button
+  requestAnimationFrame(() => {
+    const card = document.getElementById(`card-${i}`);
+    if (!card) return;
+    const btns = { ok: '.ok-btn', missing: '.missing-btn', damaged: '.damaged-btn' };
+    const sel  = btns[basketItems[i].status];
+    if (sel) {
+      const btn = card.querySelector(sel);
+      if (btn) { btn.classList.add('pop'); btn.addEventListener('animationend', () => btn.classList.remove('pop'), { once: true }); }
+    }
+  });
+}
+
+function deleteItem(i) {
+  if (!confirm(`למחוק "${basketItems[i].name}"?`)) return;
+  basketItems.splice(i, 1);
+  // Shift openNotes indices: remove deleted, decrement higher ones
+  openNotes.delete(i);
+  const shifted = new Set();
+  openNotes.forEach(idx => shifted.add(idx > i ? idx - 1 : idx));
+  openNotes.clear();
+  shifted.forEach(idx => openNotes.add(idx));
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+  persistBasket();
+}
+
+function addItem(e) {
+  e.preventDefault();
+  const name  = $('new-name').value.trim();
+  const qty   = $('new-qty').value.trim();
+  const price = $('new-price').value.trim();
+  if (!name) return;
+  basketItems.push({ id: crypto.randomUUID(), name, qty, price, status: '' });
+  $('new-name').value = '';
+  $('new-qty').value  = '';
+  $('new-price').value = '';
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+  persistBasket();
+  $('new-name').focus();
+}
+
+function resetStatuses() {
+  if (!basketItems.some(i => i.status)) { toast('אין סימונים לאיפוס'); return; }
+  if (!confirm('לאפס את כל הסימונים?')) return;
+  basketItems.forEach(i => { i.status = ''; });
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+  persistBasket();
+  toast('סימונים אופסו', '#e87722');
+}
+
+function updateProgress() {
+  const total   = basketItems.length;
+  const ok      = basketItems.filter(i => i.status === 'ok').length;
+  const missing = basketItems.filter(i => i.status === 'missing').length;
+  const damaged = basketItems.filter(i => i.status === 'damaged').length;
+  const pending = total - ok - missing - damaged;
+  const done    = ok + missing + damaged;
+  const pct     = total ? Math.round(done / total * 100) : 0;
+  $('prog-fill').style.width = pct + '%';
+  $('prog-text').textContent = `${done} / ${total}`;
+  $('stat-ok').textContent      = `${ok} הגיעו`;
+  $('stat-missing').textContent = `${missing} חסרים`;
+  $('stat-damaged').textContent = `${damaged} פגומים`;
+  $('stat-pending').textContent = `${pending} ממתינים`;
+  // Update summary strip
+  const strip = $('basket-summary');
+  if (strip && total > 0) {
+    strip.style.display = 'flex';
+    $('sum-ok').textContent   = `✅ ${ok}`;
+    $('sum-miss').textContent = `❌ ${missing}`;
+    $('sum-dmg').textContent  = `⚠️ ${damaged}`;
+    $('sum-pend').textContent = `⏳ ${pending}`;
+  } else if (strip) {
+    strip.style.display = 'none';
+  }
+}
+
+function markAllOk() {
+  if (!basketItems.length) return;
+  basketItems.forEach(item => { item.status = 'ok'; });
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  updateProgress();
+  persistBasket();
+  updateHeaderBadge();
+  toast('✅ כל המוצרים סומנו כהתקבלו!', '#2e7d32');
+  if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+}
+
+function persistBasket() {
+  const baskets = allBaskets();
+  const idx = baskets.findIndex(b => b.id === currentBasketId);
+  if (idx >= 0) {
+    baskets[idx].items     = basketItems;
+    baskets[idx].updatedAt = Date.now();
+    saveAllBaskets(baskets);
+  }
+}
+
+function saveBasket() {
+  persistBasket();
+  dirty = false;
+  hideSaveBar();
+  const ok      = basketItems.filter(i => i.status === 'ok').length;
+  const missing = basketItems.filter(i => i.status === 'missing').length;
+  const damaged = basketItems.filter(i => i.status === 'damaged').length;
+  $('sum-ok').textContent      = ok;
+  $('sum-missing').textContent = missing;
+  $('sum-damaged').textContent = damaged;
+  $('sum-pending').textContent = basketItems.length - ok - missing - damaged;
+  $('summary-modal').showModal();
+  toast('הסל נשמר בהצלחה!', '#2e7d32');
+}
+
+function closeBasket() {
+  if (!confirm('לסגור את הסל הנוכחי ולפתוח חדש?')) return;
+  persistBasket();
+  const baskets = allBaskets();
+  const idx = baskets.findIndex(b => b.id === currentBasketId);
+  if (idx >= 0) {
+    baskets[idx].status   = 'closed';
+    baskets[idx].closedAt = Date.now();
+    saveAllBaskets(baskets);
+  }
+  dirty = false;
+  hideSaveBar();
+  toast('הסל נסגר', '#e87722');
+  loadBasket();
+  loadHistory();
+}
+
+// ══════════════════════════════════════════
+//  SAVE BAR
+// ══════════════════════════════════════════
+function showSaveBar() { $('save-bar').classList.add('visible'); }
+function hideSaveBar()  { $('save-bar').classList.remove('visible'); }
+
+// ══════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════
+function loadHistory() {
+  const key = session.name + (session.customerId ? '_' + session.customerId : '');
+  const baskets = allBaskets().filter(b => b.ownerKey === key);
+  const container = $('history-list');
+  if (!baskets.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>אין היסטוריה עדיין</h3></div>';
+    return;
+  }
+  container.innerHTML = baskets.map((basket, idx) => {
+    const items   = basket.items || [];
+    const ok      = items.filter(i => i.status === 'ok').length;
+    const missing = items.filter(i => i.status === 'missing').length;
+    const damaged = items.filter(i => i.status === 'damaged').length;
+    const date    = new Date(basket.createdAt).toLocaleDateString('he-IL');
+    const pill    = basket.status === 'open'
+      ? '<span class="status-pill pill-open">פתוח</span>'
+      : ok === items.length && items.length
+        ? '<span class="status-pill pill-done">הושלם</span>'
+        : '<span class="status-pill pill-partial">חלקי</span>';
+    const rows = items.length
+      ? items.map(item => `
+          <div class="detail-item">
+            <span class="name">${escHtml(item.name)}</span>
+            <span class="qty">${escHtml(item.qty || '')}</span>
+            <span class="price">${item.price ? '₪'+escHtml(item.price) : ''}</span>
+            <span class="st ${item.status || 'pending'}">${statusLabel(item.status)}</span>
+          </div>`).join('')
+      : '<p style="color:var(--muted);font-size:13px;padding:6px 0">סל ריק</p>';
+    return `
+      <div class="history-card">
+        <div class="history-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+          <div class="order-info">
+            <h3>סל מס׳ ${baskets.length - idx}</h3>
+            <p>${date} · ${items.length} מוצרים · ✅${ok} ❌${missing} ⚠️${damaged}</p>
+          </div>
+          <div class="order-right">${pill}<span class="expand-icon">▼</span></div>
+        </div>
+        <div class="history-detail">${rows}</div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  ADMIN DASHBOARD
+// ══════════════════════════════════════════
+function loadAdminDashboard() {
+  if (!session?.isAdmin) return;
+  adminBaskets = allBaskets();
+  filterAdminList();
+}
+
+function filterAdminList() {
+  const search  = ($('adm-search')?.value || '').trim().toLocaleLowerCase('he-IL');
+  const fStatus = $('adm-filter-status')?.value || '';
+
+  adminBasketsFiltered = adminBaskets.filter(b => {
+    const matchStatus = !fStatus || b.status === fStatus;
+    const matchSearch = !search
+      || (b.ownerName || '').toLocaleLowerCase('he-IL').includes(search)
+      || (b.customerId || '').toLocaleLowerCase('he-IL').includes(search)
+      || (b.items || []).some(i => (i.name || '').toLocaleLowerCase('he-IL').includes(search));
+    return matchStatus && matchSearch;
+  });
+
+  renderAdminDashboard();
+}
+
+function renderAdminDashboard() {
+  // stats (always full set)
+  const customers = new Set(adminBaskets.map(b => b.ownerKey)).size;
+  const totOk      = adminBaskets.reduce((s, b) => s + (b.items||[]).filter(i => i.status==='ok').length, 0);
+  const totMissing = adminBaskets.reduce((s, b) => s + (b.items||[]).filter(i => i.status==='missing').length, 0);
+  const totDamaged = adminBaskets.reduce((s, b) => s + (b.items||[]).filter(i => i.status==='damaged').length, 0);
+  const totItems   = adminBaskets.reduce((s, b) => s + (b.items||[]).length, 0);
+  const open   = adminBaskets.filter(b => b.status === 'open').length;
+  const closed = adminBaskets.filter(b => b.status !== 'open').length;
+
+  $('adm-customers').textContent = customers;
+  $('adm-open').textContent      = open;
+  $('adm-closed').textContent    = closed;
+  $('adm-missing').textContent   = totMissing;
+  $('adm-damaged').textContent   = totDamaged;
+  $('adm-total').textContent     = totItems;
+
+  const container = $('admin-orders-list');
+  if (!adminBasketsFiltered.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>אין סלים להצגה</h3></div>';
+    return;
+  }
+
+  container.innerHTML = adminBasketsFiltered.map((basket, idx) => {
+    const items   = basket.items || [];
+    const ok      = items.filter(i => i.status === 'ok').length;
+    const missing = items.filter(i => i.status === 'missing').length;
+    const damaged = items.filter(i => i.status === 'damaged').length;
+    const date    = new Date(basket.createdAt).toLocaleDateString('he-IL');
+    const pill    = basket.status === 'open'
+      ? '<span class="status-pill pill-open">פתוח</span>'
+      : '<span class="status-pill pill-partial">סגור</span>';
+    const rows = items.length
+      ? items.map(item => `
+          <div class="detail-item">
+            <span class="name">${escHtml(item.name)}</span>
+            <span class="qty">${escHtml(item.qty || '')}</span>
+            <span class="price">${item.price ? '₪'+escHtml(item.price) : ''}</span>
+            <span class="st ${item.status || 'pending'}">${statusLabel(item.status)}</span>
+          </div>`).join('')
+      : '<p style="color:var(--muted);font-size:13px;padding:6px 0">סל ריק</p>';
+    return `
+      <div class="history-card admin-order-card">
+        <div class="history-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+          <div class="order-info">
+            <h3>${escHtml(basket.ownerName)}${basket.customerId ? ' · ' + escHtml(basket.customerId) : ''}</h3>
+            <p>${date} · ${items.length} מוצרים · ✅${ok} ❌${missing} ⚠️${damaged}</p>
+          </div>
+          <div class="order-right">${pill}<span class="expand-icon">▼</span></div>
+        </div>
+        <div class="history-detail">
+          <div class="admin-order-meta">סל ${idx + 1} מתוך ${adminBasketsFiltered.length}</div>
+          ${rows}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+//  IMPORT
+// ══════════════════════════════════════════
+function importFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let products = [];
+      if (file.name.endsWith('.json')) {
+        const data = JSON.parse(e.target.result);
+        products = Array.isArray(data) ? data : (data.products || data.items || []);
+      } else {
+        // CSV: first row = headers
+        const lines = e.target.result.split('\n').filter(Boolean);
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        products = lines.slice(1).map(line => {
+          const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+          const obj = {};
+          headers.forEach((h, i) => { obj[h] = cols[i] || ''; });
+          return obj;
+        });
+      }
+      if (!products.length) { toast('לא נמצאו מוצרים בקובץ', '#c62828'); return; }
+
+      // Normalize fields
+      const mapped = products.map(p => ({
+        id:    crypto.randomUUID(),
+        name:  p.name || p.שם || p.מוצר || p.product || '',
+        qty:   p.qty  || p.כמות || p.quantity || '',
+        price: p.price || p.מחיר || '',
+        status: ''
+      })).filter(p => p.name);
+
+      if (!mapped.length) { toast('לא נמצאו מוצרים עם שם תקין', '#c62828'); return; }
+
+      if (basketItems.length && !confirm(`הייבוא יוסיף ${mapped.length} מוצרים לסל. להמשיך?`)) return;
+      basketItems.push(...mapped);
+      persistBasket();
+      dirty = true;
+      showSaveBar();
+      renderBasket();
+      updateProgress();
+      renderCatalogOptions();
+      toast(`יובאו ${mapped.length} מוצרים`, '#2e7d32');
+    } catch (err) {
+      console.error(err);
+      toast('שגיאה בפענוח הקובץ', '#c62828');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ══════════════════════════════════════════
+//  CATALOG SUGGESTIONS
+// ══════════════════════════════════════════
+const PRODUCT_CATALOG = [
+  'חלב תנובה 3%','חלב 1% 1 ליטר','חלב 3% 2 ליטר',
+  'גבינה לבנה 5%','גבינה צהובה','קוטג 5%','שמנת חמוצה','יוגורט טבעי',
+  'לחם פרוס','פיתות','חלות שישי','בגט','לחם שיפון',
+  'קמח לבן','קמח כוסמין','שמרים',
+  'עגבניות','מלפפון','סלק','חציל','פלפל אדום','פלפל ירוק',
+  'בצל','שום','גזר','קישוא','תפוחי אדמה','בייבי שף תפוא',
+  'תפוחים','בננות','אבטיח','מלון','ענבים','תפוזים','לימון',
+  'עוף שלם','חזה עוף','כנפיים','בשר טחון','נקניקיות',
+  'שמן זית','שמן קנולה','קטשופ אסם','חומוס','טחינה',
+  'ספגטי','פסטה פרפרים','אורז','קינואה','עדשים',
+  'קפה נמס','תה ממין','מיץ תפוזים','מים מינרלים',
+  'זיתים שחורים','זיתים ירוקים','כבושים',
+  'נרות שבת','נרות חנוכה',
+  'דטרג׳נט כלים','אקונומיקה','סבון ידיים','שמפו','מרכך',
+  'נייר טואלט','טישו','מגבות נייר','נייר סופג',
+  'פלסטרים','אקמול','ויטמין C',
+  'חיתולים','מגבוני לחות','גלגל ים לתינוק',
+  'קורנפלקס','שיבולת שועל','מוסלי','דבש',
+  'אבקת אפייה','סוכר','מלח','פלפל שחור',
+  'רסק עגבניות','שימורי גרגרי חומוס','שימורי טונה',
+  'שוקולד מריר','שוקולד חלב','עוגיות','חטיפים'
+];
+
+function renderCatalogOptions() {
+  const dl = $('prod-suggestions');
+  if (!dl) return;
+  const seen = new Set(basketItems.map(i => i.name));
+  // Merge basket items + built-in catalog (basket items first)
+  const basketOpts = basketItems
+    .filter((item, idx, arr) => arr.findIndex(x => x.name === item.name) === idx)
+    .map(i => `<option value="${escHtml(i.name)}"></option>`)
+    .join('');
+  const catalogOpts = PRODUCT_CATALOG
+    .filter(name => !seen.has(name))
+    .map(name => `<option value="${escHtml(name)}"></option>`)
+    .join('');
+  dl.innerHTML = basketOpts + catalogOpts;
+}
+
+// ══════════════════════════════════════════
+//  QUICK-ADD TILES
+// ══════════════════════════════════════════
+const QUICK_TILES_DEFAULT = [
+  'חלב', 'לחם', 'ביצים', 'גבינה לבנה', 'יוגורט טבעי',
+  'עגבניות', 'מלפפון', 'בצל', 'שום', 'תפוחי אדמה',
+  'תפוחים', 'בננות', 'אבטיח',
+  'ספגטי', 'אורז', 'שמן זית',
+  'נרות שבת', 'נייר טואלט', 'טישו',
+];
+
+function renderQuickTiles(filter = '') {
+  const wrap  = $('quick-add-wrap');
+  const tiles = $('quick-add-tiles');
+  if (!wrap || !tiles) return;
+
+  const existing = new Set(basketItems.map(i => i.name));
+  const query = filter.trim().toLocaleLowerCase('he-IL');
+
+  // If typing — show matching from full catalog; else show defaults
+  const source = query ? PRODUCT_CATALOG : QUICK_TILES_DEFAULT;
+  const shown  = source
+    .filter(name => !existing.has(name))
+    .filter(name => !query || name.toLocaleLowerCase('he-IL').includes(query))
+    .slice(0, 14);
+
+  if (!shown.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  tiles.innerHTML = shown.map(name => {
+    const emoji = productEmoji(name);
+    return `<button type="button" class="quick-tile" onclick="quickAdd('${name.replace(/'/g, "\\'")}')">
+      <span class="tile-emoji">${emoji}</span>${name}
+    </button>`;
+  }).join('');
+}
+
+function filterQuickTiles(val) {
+  renderQuickTiles(val);
+}
+
+function quickAdd(name) {
+  basketItems.push({ id: crypto.randomUUID(), name, qty: '', price: '', status: '' });
+  dirty = true;
+  showSaveBar();
+  renderBasket();
+  renderCatalogOptions();
+  renderQuickTiles();
+  updateProgress();
+  persistBasket();
+  updateHeaderBadge();
+  if (navigator.vibrate) navigator.vibrate(20);
+  toast(`✅ ${name} נוסף`, '#2e7d32');
+}
+
+// ══════════════════════════════════════════
+//  EXPORT CSV
+// ══════════════════════════════════════════
+function exportCSV() {
+  if (!basketItems.length) { toast('הסל ריק'); return; }
+  const rows = [['שם מוצר', 'כמות', 'מחיר', 'סטטוס']];
+  basketItems.forEach(i => rows.push([i.name, i.qty, i.price, statusLabel(i.status)]));
+  downloadCSV(rows, `סל-${session.name}-${new Date().toLocaleDateString('he-IL')}.csv`);
+}
+
+function exportAdminCSV() {
+  const rows = [['לקוח', 'מזהה', 'תאריך', 'מוצר', 'כמות', 'מחיר', 'סטטוס', 'סטטוס סל']];
+  adminBaskets.forEach(b => {
+    const date = new Date(b.createdAt).toLocaleDateString('he-IL');
+    (b.items || []).forEach(i => {
+      rows.push([b.ownerName, b.customerId, date, i.name, i.qty, i.price, statusLabel(i.status), b.status === 'open' ? 'פתוח' : 'סגור']);
+    });
+    if (!b.items?.length) rows.push([b.ownerName, b.customerId, date, '(ריק)', '', '', '', b.status]);
+  });
+  downloadCSV(rows, `mishnat-yosef-admin-${new Date().toLocaleDateString('he-IL')}.csv`);
+}
+
+function downloadCSV(rows, filename) {
+  const bom = '﻿';
+  const csv = bom + rows.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+  toast('קובץ יוצא בהצלחה', '#2e7d32');
+}
+
+// ══════════════════════════════════════════
+//  FILTER BASKET
+// ══════════════════════════════════════════
+let currentFilter = '';
+
+function setFilter(btn, filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBasket();
+}
+
+function filterBasket() {
+  renderBasket();
+}
+
+// ── Emoji category picker ──
+function productCategory(name) {
+  const n = (name || '').toLocaleLowerCase('he-IL');
+  if (/חלב|גבינ|יוגורט|שמנת/.test(n))    return 'dairy';
+  if (/לחם|פית|עוגה|קמח|כוסמין/.test(n)) return 'bread';
+  if (/עגבני|מלפפון|סלק|חציל|ירק/.test(n)) return 'veggie';
+  if (/תפוח|בנ|פרי|אבטיח/.test(n))        return 'fruit';
+  if (/בשר|עוף|דג/.test(n))               return 'meat';
+  if (/שמן|רוטב|קטשופ|חומוס/.test(n))     return 'sauce';
+  if (/ספגטי|פסטה|אורז|קינואה/.test(n))   return 'pasta';
+  if (/קפה|תה|משקה|מיץ/.test(n))          return 'drink';
+  if (/זיתים|זית/.test(n))                return 'olives';
+  if (/נר|נרות/.test(n))                  return 'candle';
+  if (/דטרג|ניקוי|סבון|שמפו/.test(n))     return 'clean';
+  if (/טישו|נייר|מגבות/.test(n))          return 'paper';
+  if (/פלסטר|תרופה|בריאות/.test(n))       return 'health';
+  if (/צעצוע|גלגל|לתינוק/.test(n))        return 'baby';
+  return '';
+}
+
+function productEmoji(name) {
+  const n = (name || '').toLocaleLowerCase('he-IL');
+  if (/חלב|גבינ|יוגורט|שמנת/.test(n))    return '🥛';
+  if (/לחם|פית|עוגה|קמח|כוסמין/.test(n)) return '🍞';
+  if (/עגבני|מלפפון|סלק|חציל|ירק/.test(n)) return '🥦';
+  if (/תפוח|בנ|פרי|אבטיח/.test(n))        return '🍎';
+  if (/בשר|עוף|דג/.test(n))               return '🥩';
+  if (/שמן|רוטב|קטשופ|חומוס/.test(n))     return '🫙';
+  if (/ספגטי|פסטה|אורז|קינואה/.test(n))   return '🍝';
+  if (/קפה|תה|משקה|מיץ/.test(n))          return '☕';
+  if (/זיתים|זית/.test(n))                return '🫒';
+  if (/נר|נרות/.test(n))                  return '🕯️';
+  if (/דטרג|ניקוי|סבון|שמפו/.test(n))     return '🧴';
+  if (/טישו|נייר|מגבות/.test(n))          return '🧻';
+  if (/פלסטר|תרופה|בריאות/.test(n))       return '🩹';
+  if (/צעצוע|גלגל|לתינוק/.test(n))        return '🧸';
+  return '🛒';
+}
+
+function statusRibbonLabel(status) {
+  if (status === 'ok')      return '✅ התקבל';
+  if (status === 'missing') return '❌ חסר';
+  if (status === 'damaged') return '⚠️ פגום';
+  return '';
+}
+
+// Track which note rows are open (survives re-renders)
+const openNotes = new Set();
+
+// Override renderBasket to render product cards
+const _origRenderBasket = renderBasket;
+renderBasket = function() {
+  const list = $('basket-items');
+  const search = ($('basket-search')?.value || '').trim().toLocaleLowerCase('he-IL');
+
+  let items = basketItems.map((item, i) => ({ ...item, _i: i }));
+
+  if (currentFilter === 'pending') {
+    items = items.filter(it => !it.status);
+  } else if (currentFilter) {
+    items = items.filter(it => it.status === currentFilter);
+  }
+  if (search) {
+    items = items.filter(it => (it.name || '').toLocaleLowerCase('he-IL').includes(search));
+  }
+
+  if (!basketItems.length) {
+    list.style.display = 'block';
+    list.innerHTML = `<div class="empty-state"><div class="icon">🛒</div><h3>הסל ריק</h3><p>הוסף מוצרים באמצעות הטופס למעלה</p></div>`;
+    return;
+  }
+  if (!items.length) {
+    list.style.display = 'block';
+    list.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><h3>אין תוצאות</h3><p>נסה לשנות את הסינון</p></div>`;
+    return;
+  }
+
+  list.style.display = '';
+
+  // swipe hint on mobile
+  const isMobile = window.innerWidth <= 560;
+
+  const cardHtml = items.map(item => {
+    const i    = item._i;
+    const emoji = productEmoji(item.name);
+    const cat   = productCategory(item.name);
+    const imgHtml = item.image
+      ? `<img src="${escHtml(item.image)}" alt="${escHtml(item.name)}" />`
+      : `<span class="card-img-placeholder">${emoji}</span>`;
+
+    return `
+    <div class="product-card ${item.status || ''}" id="card-${i}" data-index="${i}" ${cat ? `data-cat="${cat}"` : ''}>
+      <span class="drag-handle" title="גרור לשינוי סדר">⠿</span>
+      <span class="card-ribbon">${statusRibbonLabel(item.status)}</span>
+
+      <div class="card-img" onclick="pickImage(${i})">
+        ${imgHtml}
+        <div class="img-upload-overlay"><span>📷 החלף תמונה</span></div>
+        <input type="file" id="img-input-${i}" accept="image/*" style="display:none" onchange="loadImage(${i},this)" />
+      </div>
+
+      <div class="card-body">
+        <div class="card-name">${escHtml(item.name)}</div>
+        <div class="card-meta">
+          ${item.qty   ? `<span class="card-qty">כמות: ${escHtml(item.qty)}</span>` : ''}
+          ${item.price ? `<span class="card-price">₪${escHtml(item.price)}</span>` : ''}
+        </div>
+        ${item.note ? `<div class="card-note">📝 ${escHtml(item.note)}</div>` : ''}
+
+        <div class="card-actions">
+          <button class="card-btn ok-btn ${item.status==='ok'?'active':''}"
+            onclick="setStatus(${i},'ok')">
+            <span class="btn-icon">✅</span>התקבל
+          </button>
+          <button class="card-btn missing-btn ${item.status==='missing'?'active':''}"
+            onclick="setStatus(${i},'missing')">
+            <span class="btn-icon">❌</span>חסר
+          </button>
+          <button class="card-btn damaged-btn ${item.status==='damaged'?'active':''}"
+            onclick="setStatus(${i},'damaged')">
+            <span class="btn-icon">⚠️</span>פגום
+          </button>
+        </div>
+      </div>
+
+      <div class="card-note-input ${openNotes.has(i) ? 'visible' : ''}" id="note-row-${i}">
+        <input type="text" id="note-input-${i}" value="${escHtml(item.note||'')}"
+          placeholder="הערה: אריזה פגומה, חסר מ..."
+          onkeydown="if(event.key==='Enter') saveNote(${i})" />
+        <button onclick="saveNote(${i})">שמור</button>
+      </div>
+
+      <div class="card-footer">
+        <button class="card-foot-btn" onclick="toggleNote(${i})">📝 הערה</button>
+        <button class="card-foot-btn danger" onclick="deleteItem(${i})">🗑 מחק</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const hint = isMobile ? '<div class="swipe-hint" style="grid-column:1/-1">⠿ גרור כרטיסייה לשינוי סדר</div>' : '';
+  list.innerHTML = hint + cardHtml;
+  setTimeout(initDragDrop, 0);
+  updateHeaderBadge();
+};
+
+// ══════════════════════════════════════════
+//  HEADER BADGE
+// ══════════════════════════════════════════
+function updateHeaderBadge() {
+  let badge = document.getElementById('hdr-basket-badge');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.id = 'hdr-basket-badge';
+    badge.className = 'basket-count-badge';
+    const nameEl = $('hdr-name');
+    if (nameEl) nameEl.parentNode.insertBefore(badge, nameEl.nextSibling);
+  }
+  const total   = basketItems.length;
+  const done    = basketItems.filter(i => i.status).length;
+  badge.textContent = total ? `${done}/${total}` : '';
+}
+
+// ══════════════════════════════════════════
+//  DRAG & DROP REORDER
+// ══════════════════════════════════════════
+let dragSrcIndex = null;
+
+function initDragDrop() {
+  const container = $('basket-items');
+  if (!container) return;
+
+  container.querySelectorAll('.product-card').forEach((card, i) => {
+    card.setAttribute('draggable', 'true');
+
+    card.addEventListener('dragstart', e => {
+      dragSrcIndex = parseInt(card.dataset.index);
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      container.querySelectorAll('.product-card').forEach(c => c.classList.remove('drag-over'));
+    });
+
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      container.querySelectorAll('.product-card').forEach(c => c.classList.remove('drag-over'));
+      card.classList.add('drag-over');
+    });
+
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      const destIndex = parseInt(card.dataset.index);
+      if (dragSrcIndex === null || dragSrcIndex === destIndex) return;
+      const moved = basketItems.splice(dragSrcIndex, 1)[0];
+      basketItems.splice(destIndex, 0, moved);
+      dragSrcIndex = null;
+      openNotes.clear();
+      persistBasket();
+      renderBasket();
+      updateProgress();
+      updateHeaderBadge();
+    });
+  });
+}
+
+function pickImage(i) {
+  $(`img-input-${i}`)?.click();
+}
+
+function loadImage(i, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    basketItems[i].image = e.target.result;
+    dirty = true;
+    persistBasket();
+    renderBasket();
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function toggleNote(i) {
+  if (openNotes.has(i)) {
+    openNotes.delete(i);
+  } else {
+    openNotes.add(i);
+    setTimeout(() => $(`note-input-${i}`)?.focus(), 50);
+  }
+  renderBasket();
+}
+
+function saveNote(i) {
+  const input = $(`note-input-${i}`);
+  if (!input) return;
+  basketItems[i].note = input.value.trim();
+  openNotes.delete(i);
+  dirty = true;
+  persistBasket();
+  renderBasket();
+  toast('הערה נשמרה', '#2e7d32');
+}
+
+// ══════════════════════════════════════════
+//  WHATSAPP SHARE
+// ══════════════════════════════════════════
+function shareWhatsApp() {
+  if (!basketItems.length) { toast('הסל ריק'); return; }
+  const date = new Date().toLocaleDateString('he-IL');
+  let msg = `🧺 *סל משנת יוסף — ${session.name}*\n📅 ${date}\n\n`;
+
+  const ok      = basketItems.filter(i => i.status === 'ok');
+  const missing = basketItems.filter(i => i.status === 'missing');
+  const damaged = basketItems.filter(i => i.status === 'damaged');
+  const pending = basketItems.filter(i => !i.status);
+
+  if (ok.length) {
+    msg += `✅ *הגיעו (${ok.length}):*\n`;
+    ok.forEach(i => { msg += `• ${i.name}${i.qty ? ' · ' + i.qty : ''}${i.note ? ' — ' + i.note : ''}\n`; });
+    msg += '\n';
+  }
+  if (missing.length) {
+    msg += `❌ *לא הגיעו (${missing.length}):*\n`;
+    missing.forEach(i => { msg += `• ${i.name}${i.qty ? ' · ' + i.qty : ''}${i.note ? ' — ' + i.note : ''}\n`; });
+    msg += '\n';
+  }
+  if (damaged.length) {
+    msg += `⚠️ *פגומים (${damaged.length}):*\n`;
+    damaged.forEach(i => { msg += `• ${i.name}${i.qty ? ' · ' + i.qty : ''}${i.note ? ' — ' + i.note : ''}\n`; });
+    msg += '\n';
+  }
+  if (pending.length) {
+    msg += `⏳ *טרם סומנו (${pending.length}):*\n`;
+    pending.forEach(i => { msg += `• ${i.name}\n`; });
+    msg += '\n';
+  }
+
+  msg += `─────────────────\n*משנת יוסף – שירות לקוחות*`;
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ══════════════════════════════════════════
+//  BACKUP / RESTORE
+// ══════════════════════════════════════════
+function backupAll() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    baskets: lsGet(LS.BASKETS) || [],
+    session: lsGet(LS.SESSION)
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `mishnat-yosef-backup-${new Date().toLocaleDateString('he-IL').replace(/\./g,'-')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('גיבוי יוצא בהצלחה', '#2e7d32');
+}
+
+function restoreBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.baskets) throw new Error('פורמט לא תקין');
+      if (!confirm(`שחזור יחליף את כל הנתונים הקיימים. ${data.baskets.length} סלים במגיבוי. להמשיך?`)) return;
+      lsSet(LS.BASKETS, data.baskets);
+      toast('שחזור הושלם!', '#2e7d32');
+      loadAdminDashboard();
+    } catch (err) {
+      toast('שגיאה בפענוח קובץ הגיבוי', '#c62828');
+    }
+    input.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function clearAllData() {
+  if (!confirm('⚠️ פעולה זו תמחק את כל הנתונים לצמיתות. לא ניתן לשחזר!\n\nלהמשיך?')) return;
+  localStorage.removeItem(LS.BASKETS);
+  localStorage.removeItem(LS.SESSION);
+  toast('כל הנתונים נמחקו', '#c62828');
+  setTimeout(() => { session = null; showScreen('screen-start'); }, 1500);
+}
+
+// ══════════════════════════════════════════
+//  SCAN WIZARD
+// ══════════════════════════════════════════
+let scanIdx = 0;
+
+function openScanMode(startIdx) {
+  startIdx = startIdx || 0;
+  if (!basketItems.length) { toast('הסל ריק — טען רשימה תחילה', '#e87722'); return; }
+  scanIdx = startIdx;
+  $('scan-overlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+  renderScanItem();
+}
+
+function closeScanMode() {
+  $('scan-overlay').classList.remove('active');
+  document.body.style.overflow = '';
+  renderBasket();
+  updateProgress();
+  updateHeaderBadge();
+}
+
+function renderScanItem() {
+  var item  = basketItems[scanIdx];
+  if (!item) { closeScanMode(); return; }
+  var total = basketItems.length;
+
+  $('scan-pname').textContent = item.name;
+  $('scan-pmeta').textContent = [
+    item.qty   ? ('כמות: ' + item.qty)    : '',
+    item.price ? ('מחיר: ₪' + item.price) : ''
+  ].filter(Boolean).join(' · ');
+
+  $('scan-counter').textContent = 'מוצר ' + (scanIdx + 1) + ' מתוך ' + total;
+  $('scan-prog-fill').style.width = Math.round((scanIdx + 1) / total * 100) + '%';
+
+  // Dots
+  var dots = $('scan-dots');
+  if (total <= 20) {
+    dots.innerHTML = basketItems.map(function(it, i) {
+      var cls = i === scanIdx ? 'current' : (it.status || 'skipped');
+      return '<div class="scan-dot ' + cls + '"></div>';
+    }).join('');
+  } else { dots.innerHTML = ''; }
+
+  // Highlight active button
+  ['sbtn-ok','sbtn-miss','sbtn-dmg'].forEach(function(id) {
+    var el = $(id); if (el) el.classList.remove('sel');
+  });
+  if (item.status === 'ok')      { var ok = $('sbtn-ok'); if (ok) ok.classList.add('sel'); }
+  if (item.status === 'missing') { var ms = $('sbtn-miss'); if (ms) ms.classList.add('sel'); }
+  if (item.status === 'damaged') { var dm = $('sbtn-dmg'); if (dm) dm.classList.add('sel'); }
+
+  // Damaged extra
+  var extra = $('scan-dmg-extra');
+  if (extra) {
+    if (item.status === 'damaged') extra.classList.add('open');
+    else                           extra.classList.remove('open');
+  }
+  var noteInp = $('scan-note-inp');
+  if (noteInp) noteInp.value = item.note || '';
+  var prev = $('scan-photo-prev');
+  if (prev) {
+    if (item.image) { prev.src = item.image; prev.classList.add('show'); }
+    else            { prev.src = '';         prev.classList.remove('show'); }
+  }
+
+  // Next vs Finish
+  var nextBtn = $('scan-next-btn');
+  var isLast  = scanIdx >= total - 1;
+  nextBtn.textContent = isLast ? 'סיים ✓' : 'הבא ‹';
+  nextBtn.className   = 'snav-btn ' + (isLast ? 'snav-finish' : 'snav-next');
+  nextBtn.onclick     = isLast ? scanFinish : scanNext;
+}
+
+function scanSetStatus(status) {
+  _scanSaveNote();
+  var prev = basketItems[scanIdx].status;
+  basketItems[scanIdx].status = (prev === status) ? '' : status;
+  persistBasket(); dirty = true;
+  renderScanItem();
+  if (status !== 'damaged' && basketItems[scanIdx].status) {
+    setTimeout(scanNext, 380);
+  } else if (status === 'damaged') {
+    setTimeout(function() { var n = $('scan-note-inp'); if (n) n.focus(); }, 100);
+  }
+}
+
+function _scanSaveNote() {
+  if (!basketItems[scanIdx]) return;
+  var note = ($('scan-note-inp') ? $('scan-note-inp').value : '').trim();
+  if (note) basketItems[scanIdx].note = note;
+}
+
+function scanNext() {
+  _scanSaveNote(); persistBasket();
+  if (scanIdx < basketItems.length - 1) { scanIdx++; renderScanItem(); }
+  else scanFinish();
+}
+
+function scanPrev() {
+  _scanSaveNote();
+  if (scanIdx > 0) { scanIdx--; renderScanItem(); }
+}
+
+function scanSkip() {
+  _scanSaveNote();
+  if (scanIdx < basketItems.length - 1) { scanIdx++; renderScanItem(); }
+  else scanFinish();
+}
+
+function scanFinish() {
+  _scanSaveNote(); persistBasket(); dirty = true;
+  closeScanMode();
+  toast('✅ הסיקור הושלם!', '#2e7d32');
+  if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+}
+
+function scanAllOk() {
+  _scanSaveNote();
+  for (var i = scanIdx; i < basketItems.length; i++) {
+    if (!basketItems[i].status) basketItems[i].status = 'ok';
+  }
+  persistBasket(); dirty = true; closeScanMode();
+  toast('✅ כל המוצרים שנותרו סומנו כהגיעו!', '#2e7d32');
+  if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+}
+
+function scanLoadPhoto(input) {
+  var file = input.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    basketItems[scanIdx].image = e.target.result;
+    var p = $('scan-photo-prev');
+    if (p) { p.src = e.target.result; p.classList.add('show'); }
+    persistBasket();
+  };
+  reader.readAsDataURL(file); input.value = '';
+}
+
+function _updateScanBtn() {
+  var btn = $('btn-start-scan');
+  if (btn) btn.style.display = basketItems.length ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════════
+//  IMPORT PANEL
+// ══════════════════════════════════════════
+function toggleImport() {
+  const toggle = $('import-toggle');
+  const body   = $('import-body');
+  toggle.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+function switchImpTab(el, pane) {
+  document.querySelectorAll('.imp-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.imp-pane').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  $('imp-pane-' + pane).classList.add('active');
+}
+
+function onFileDrop(e) {
+  e.preventDefault();
+  $('file-drop').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  processImportFile(file);
+}
+
+function importCustomerFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  processImportFile(file);
+  input.value = '';
+}
+
+function processImportFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    let items = [];
+    try {
+      const name = file.name.toLowerCase();
+      if (name.endsWith('.json')) {
+        const data = JSON.parse(e.target.result);
+        const arr  = Array.isArray(data) ? data : (data.products || data.items || data.orders || []);
+        items = arr.map(p => ({
+          id: crypto.randomUUID(),
+          name:  p.name  || p['שם']   || p['מוצר']  || p.product  || '',
+          qty:   String(p.qty   || p['כמות'] || p.quantity || ''),
+          price: String(p.price || p['מחיר'] || ''),
+          status: ''
+        })).filter(p => p.name);
+      } else {
+        items = parseImportText(e.target.result, name.endsWith('.csv'));
+      }
+    } catch(err) {
+      console.error(err);
+      toast('שגיאה בפענוח הקובץ', '#c62828'); return;
+    }
+    if (!items.length) { toast('לא נמצאו פריטים בקובץ', '#c62828'); return; }
+    applyImportedItems(items);
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function importFromText() {
+  const text = ($('imp-text')?.value || '').trim();
+  if (!text) { toast('הדבק רשימה קודם', '#e87722'); return; }
+  const items = parseImportText(text, false);
+  if (!items.length) { toast('לא נמצאו פריטים בטקסט', '#c62828'); return; }
+  applyImportedItems(items);
+  $('imp-text').value = '';
+}
+
+function parseImportText(raw, forceCsv) {
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+
+  const firstLine  = lines[0];
+  const hasHebHdr  = /שם|מוצר|name|product/i.test(firstLine);
+  const looksLikeCsv = forceCsv || (firstLine.includes(',') && hasHebHdr);
+
+  // ── CSV with header row ──
+  if (looksLikeCsv && hasHebHdr) {
+    const headers = firstLine.split(',').map(h => h.trim().replace(/^"|"$/g,''));
+    return lines.slice(1).flatMap(line => {
+      const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g,''));
+      const obj  = {};
+      headers.forEach((h, i) => { obj[h] = cols[i] || ''; });
+      const name  = obj['שם'] || obj['מוצר'] || obj['name'] || obj['product'] || cols[0] || '';
+      const qty   = obj['כמות'] || obj['qty']  || obj['quantity'] || cols[1] || '';
+      const price = obj['מחיר'] || obj['price'] || cols[2] || '';
+      return name ? [{ id: crypto.randomUUID(), name, qty, price, status: '' }] : [];
+    });
+  }
+
+  // ── Free text ──
+  return lines.flatMap(line => {
+    // Remove bullets / numbering
+    line = line.replace(/^[\s\d.\-*•·#]+/, '').trim();
+    if (!line) return [];
+
+    // Comma-separated without qty pattern → split to multiple items
+    if (line.includes(',') && !/[xX×]\s*\d/.test(line) && !/\d+\s*(יח|ק|גרם|ל)/.test(line)) {
+      return line.split(',').map(part => {
+        const n = part.trim();
+        return n ? { id: crypto.randomUUID(), name: n, qty: '', price: '', status: '' } : null;
+      }).filter(Boolean);
+    }
+
+    let name = line, qty = '', price = '';
+    let m;
+
+    // "name x2" / "name ×2" / "name X 2"
+    m = line.match(/^(.+?)\s+[xX×]\s*(\d[\d.]*)\s*(.{0,15})?$/);
+    if (m) { name = m[1].trim(); qty = m[2] + (m[3]?.trim() ? ' '+m[3].trim() : ''); }
+    else {
+      // "2x name"
+      m = line.match(/^(\d[\d.]*)\s*[xX×]\s*(.+)$/);
+      if (m) { qty = m[1]; name = m[2].trim(); }
+      else {
+        // "name 2 יח'" / "name 1 ק"ג"
+        m = line.match(/^(.+?)\s+(\d[\d.]*)\s*(יח[׳']?|יחידות?|ק[״"ּ]?ג|גרם|ל[״"ּ]?ג|ml|kg|gr?|pcs?)$/i);
+        if (m && m[1].length > 1) { name = m[1].trim(); qty = m[2] + (m[3] ? ' '+m[3] : ''); }
+        else {
+          // "name - qty"
+          m = line.match(/^(.+?)\s+-\s+(.+)$/);
+          if (m && !/^\d/.test(m[1])) { name = m[1].trim(); qty = m[2].trim(); }
+          else {
+            // "name (qty)"
+            m = line.match(/^(.+?)\s+\((\d[^)]*)\)$/);
+            if (m) { name = m[1].trim(); qty = m[2].trim(); }
+          }
+        }
+      }
+    }
+    return [{ id: crypto.randomUUID(), name: name.trim(), qty, price, status: '' }];
+  });
+}
+
+// ── Apply imported items to basket ──
+function applyImportedItems(items) {
+  let replace = false;
+  if (basketItems.length) {
+    const ans = confirm(
+      `יש ${basketItems.length} פריטים בסל כרגע.\n\n` +
+      `לחץ אישור ← הוסף ${items.length} פריטים (ישמרו הישנים)\n` +
+      `לחץ ביטול ← החלף את הכל ב-${items.length} פריטים חדשים`
+    );
+    if (!ans) {
+      if (!confirm(`למחוק את ${basketItems.length} הפריטים הקיימים ולטעון מחדש?`)) return;
+      replace = true;
+    }
+  }
+  if (replace) { basketItems.length = 0; openNotes.clear(); }
+  basketItems.push(...items);
+  dirty = true;
+  persistBasket();
+  showSaveBar();
+  renderBasket();
+  renderCatalogOptions();
+  renderQuickTiles();
+  updateProgress();
+  updateHeaderBadge();
+  toast(`✅ נטענו ${items.length} פריטים — מתחיל סיקור!`, '#2e7d32');
+  // Close import panel
+  $('import-toggle')?.classList.remove('open');
+  $('import-body')?.classList.remove('open');
+  _updateScanBtn();
+  // Auto-open scan wizard
+  setTimeout(() => openScanMode(0), 500);
+}
+
+// ══════════════════════════════════════════
+//  BASKET CODE (encode/decode)
+// ══════════════════════════════════════════
+function encodeBasketCode(items) {
+  const slim = items.map(({ name, qty, price }) => ({ n: name, q: qty||'', p: price||'' }));
+  return btoa(unescape(encodeURIComponent(JSON.stringify(slim))));
+}
+
+function decodeBasketCode(code) {
+  try {
+    const json = decodeURIComponent(escape(atob(code.trim())));
+    const arr  = JSON.parse(json);
+    if (!Array.isArray(arr)) throw new Error('not array');
+    return arr.map(x => ({
+      id: crypto.randomUUID(),
+      name:  x.n || x.name  || '',
+      qty:   x.q || x.qty   || '',
+      price: x.p || x.price || '',
+      status: ''
+    })).filter(x => x.name);
+  } catch {
+    return null;
+  }
+}
+
+function importFromCode() {
+  const code = ($('imp-code')?.value || '').trim();
+  if (!code) { toast('הזן קוד קנייה תחילה', '#e87722'); return; }
+  const items = decodeBasketCode(code);
+  if (!items || !items.length) { toast('קוד לא תקין — בדוק ושלח שוב', '#c62828'); return; }
+  applyImportedItems(items);
+  $('imp-code').value = '';
+}
+
+// ── Admin: generate code for a customer list ──
+function showCodeGenerator() {
+  const listText = prompt(
+    'הדבק את רשימת המוצרים לקוד (שורה לכל מוצר):\n\nדוגמה:\nחלב x2\nלחם פרוס\nביצים 12 יח׳'
+  );
+  if (!listText) return;
+  const items = parseImportText(listText, false);
+  if (!items.length) { toast('לא נמצאו מוצרים', '#c62828'); return; }
+  const code = encodeBasketCode(items);
+  const msg  = `🔑 *קוד קנייה — משנת יוסף*\n\n${code}\n\n` +
+               `*הוראות:* פתח את האפליקציה, לחץ "טען רשימה", בחר "קוד קנייה" והדבק את הקוד.`;
+
+  // Show in dialog + copy option
+  const copied = prompt(
+    `נוצר קוד עבור ${items.length} מוצרים.\n\nהקוד:\n${code}\n\n(העתק ושלח ללקוח)`,
+    code
+  );
+  if (copied !== null) {
+    navigator.clipboard?.writeText(msg).then(() => toast('הקוד הועתק ללוח!', '#2e7d32')).catch(() => {});
+  }
+}
+
+// ══════════════════════════════════════════
+//  INIT — restore session
+// ══════════════════════════════════════════
+(function init() {
+  const saved = lsGet(LS.SESSION);
+  if (saved && saved.name) {
+    session = saved;
+    enterApp();
+  } else {
+    showScreen('screen-start');
+    setTimeout(() => $('start-name').focus(), 100);
+  }
+})();
+</script>
+
+<!-- Twitter embed (נטען רק כשיש אינטרנט) -->
+<script>
+  function loadTwitterWidget() {
+    var s = document.createElement('script');
+    s.src = 'https://platform.twitter.com/widgets.js';
+    s.async = true;
+    s.onerror = function() {
+      var msg = document.getElementById('twitter-offline-msg');
+      if (msg) msg.style.display = 'block';
+      var tl = document.querySelector('.twitter-timeline');
+      if (tl) tl.style.display = 'none';
+    };
+    document.body.appendChild(s);
+  }
+  if (navigator.onLine) {
+    loadTwitterWidget();
+  } else {
+    window.addEventListener('online', loadTwitterWidget, { once: true });
+    document.addEventListener('DOMContentLoaded', function() {
+      var msg = document.getElementById('twitter-offline-msg');
+      if (msg && !navigator.onLine) msg.style.display = 'block';
+      var tl = document.querySelector('.twitter-timeline');
+      if (tl && !navigator.onLine) tl.style.display = 'none';
+    });
+  }
+</script>
+</body>
+</html>
