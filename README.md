@@ -1,20 +1,47 @@
-# משנת יוסף — פורטל לקוחות
+<div align="center">
 
-פורטל ניהול סלים ורשימות קנייה ללקוחות משנת יוסף.
+# 🛒 משנת יוסף — פורטל לקוחות
 
-**Live:** https://mishnat-yosef-dashboard.netlify.app
+### פורטל ניהול סלים ורשימות קנייה ללקוחות עסק אמיתי
 
-## Tech
+![Status](https://img.shields.io/badge/Status-Beta-eab308?style=flat-square)
+![License](https://img.shields.io/badge/License-MIT-blue?style=flat-square)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-7c6af5?style=flat-square&logo=netlify&logoColor=white)](https://mishnat-yosef-dashboard.netlify.app)
 
-- HTML + Firebase Auth/Firestore + Netlify Functions
-- `firestore.rules` — הרשאות לפי `role: admin` למנהלים
+</div>
 
-## Structure
+---
 
-- `index.html` — האפליקציה (שורש)
-- `netlify/functions/` — סנכרון מוצרים וייבוא לקוחות
-- `firebase.json` — לפרסום Rules
+## 🎯 הבעיה → הפתרון
 
-## Setup
+לעסק "משנת יוסף" היה צריך דרך לנהל סלי קנייה ורשימות ללקוחות בלי להסתמך על ניירת או וואטסאפ ידני. **הפורטל** נותן ללקוחות ולמנהלים ממשק אחד: ניהול סלים, סנכרון מוצרים וייבוא לקוחות — עם הרשאות לפי תפקיד (admin / לקוח).
 
-ראה `mishnat-yosef/FIREBASE_SETUP_HE.md` להגדרת Firebase.
+## ✨ מה בפרויקט
+
+- ניהול סלי קנייה ורשימות ללקוחות
+- הרשאות לפי `role: admin` למנהלים (Firestore Rules)
+- סנכרון מוצרים וייבוא לקוחות דרך Netlify Functions
+- PWA — ממשק אחד לכל המכשירים
+
+## 🛠️ טכנולוגיות
+
+`HTML` `Firebase Auth` `Firestore` `Netlify Functions`
+
+## 🌐 דמו
+
+**[mishnat-yosef-dashboard.netlify.app](https://mishnat-yosef-dashboard.netlify.app)**
+
+> ⚠️ **סטטוס:** בפיתוח פעיל — חיבור Firebase המלא (Auth + Firestore בסביבת production) עדיין בתהליך השלמה. ראה `mishnat-yosef/FIREBASE_SETUP_HE.md` להגדרה.
+
+## 📦 מבנה
+
+```
+├── index.html              # האפליקציה (שורש)
+├── netlify/functions/      # סנכרון מוצרים וייבוא לקוחות
+├── firebase.json           # לפרסום Rules
+└── firestore.rules         # הרשאות Firestore
+```
+
+## 📄 רישיון
+
+MIT © 2026 [David Patlas](https://github.com/DavidPatlas-AI)
